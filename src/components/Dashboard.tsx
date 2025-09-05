@@ -30,7 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({ cars, bookings, notifications }) 
       change: '+8%'
     },
     { 
-      title: 'Rezervime Aktive', 
+      title: 'Rezervime AKTIVE', 
       value: activeBookings, 
       icon: Calendar, 
       color: 'bg-orange-500',
@@ -91,8 +91,8 @@ const Dashboard: React.FC<DashboardProps> = ({ cars, bookings, notifications }) 
                       booking.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {booking.status === 'active' ? 'Aktiv' : 
-                       booking.status === 'completed' ? 'Përfunduar' : 'Anuluar'}
+                      {booking.status === 'active' ? 'AKTIV' : 
+                       booking.status === 'completed' ? 'PËRFUNDUAR' : 'ANULUAR'}
                     </span>
                   </div>
                 </div>

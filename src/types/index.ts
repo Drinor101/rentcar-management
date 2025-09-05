@@ -8,7 +8,6 @@ export interface Car {
   dailyRate: number;
   image: string;
   status: 'available' | 'rented' | 'maintenance';
-  category: 'economy' | 'compact' | 'suv' | 'luxury';
 }
 
 export interface Booking {

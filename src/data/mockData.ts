@@ -10,8 +10,7 @@ export const mockCars: Car[] = [
     licensePlate: 'TR 123 AB',
     dailyRate: 35,
     image: 'https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg?auto=compress&cs=tinysrgb&w=500',
-    status: 'available',
-    category: 'compact'
+    status: 'available'
   },
   {
     id: '2',
@@ -22,8 +21,7 @@ export const mockCars: Car[] = [
     licensePlate: 'TR 456 CD',
     dailyRate: 80,
     image: 'https://images.pexels.com/photos/244206/pexels-photo-244206.jpeg?auto=compress&cs=tinysrgb&w=500',
-    status: 'rented',
-    category: 'luxury'
+    status: 'rented'
   },
   {
     id: '3',
@@ -34,8 +32,7 @@ export const mockCars: Car[] = [
     licensePlate: 'TR 789 EF',
     dailyRate: 40,
     image: 'https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg?auto=compress&cs=tinysrgb&w=500',
-    status: 'available',
-    category: 'compact'
+    status: 'available'
   }
 ];
 

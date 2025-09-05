@@ -41,9 +41,9 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'active': return 'Aktiv';
-      case 'completed': return 'Përfunduar';
-      case 'cancelled': return 'Anuluar';
+      case 'active': return 'AKTIV';
+      case 'completed': return 'PËRFUNDUAR';
+      case 'cancelled': return 'ANULUAR';
       default: return status;
     }
   };
@@ -86,9 +86,9 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">Të Gjitha Rezervimet</option>
-            <option value="active">Aktive</option>
-            <option value="completed">Të Përfunduara</option>
-            <option value="cancelled">Të Anuluara</option>
+            <option value="active">AKTIVE</option>
+            <option value="completed">TË PËRFUNDUARA</option>
+            <option value="cancelled">TË ANULUARA</option>
           </select>
           
           <select

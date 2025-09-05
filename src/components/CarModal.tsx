@@ -17,8 +17,7 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
     licensePlate: '',
     dailyRate: 0,
     image: '',
-    status: 'available' as Car['status'],
-    category: 'compact' as Car['category']
+    status: 'available' as Car['status']
   });
 
   useEffect(() => {
@@ -31,8 +30,7 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
         licensePlate: car.licensePlate,
         dailyRate: car.dailyRate,
         image: car.image,
-        status: car.status,
-        category: car.category
+        status: car.status
       });
     }
   }, [car]);
@@ -166,24 +164,6 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Kategoria
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              >
-                <option value="economy">Ekonomike</option>
-                <option value="compact">Kompakte</option>
-                <option value="suv">SUV</option>
-                <option value="luxury">Luksoze</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Statusi
               </label>
               <select
@@ -193,9 +173,9 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
-                <option value="available">E Disponueshme</option>
-                <option value="rented">E Qira</option>
-                <option value="maintenance">Mirëmbajtje</option>
+                <option value="available">I LIRË</option>
+                <option value="rented">I ZËNË</option>
+                <option value="maintenance">MIRËMBAJTJE</option>
               </select>
             </div>
           </div>

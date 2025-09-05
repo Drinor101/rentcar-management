@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Search, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { Car } from '../types';
 import CarModal from './CarModal';
 
@@ -18,7 +18,6 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCar, setEditingCar] = useState<Car | null>(null);
 
@@ -27,9 +26,8 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
                          car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          car.licensePlate.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || car.status === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || car.category === categoryFilter;
     
-    return matchesSearch && matchesStatus && matchesCategory;
+    return matchesSearch && matchesStatus;
   });
 
   const handleAddCar = () => {
@@ -62,9 +60,9 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'available': return 'E Disponueshme';
-      case 'rented': return 'E Qira';
-      case 'maintenance': return 'Mirëmbajtje';
+      case 'available': return 'I LIRË';
+      case 'rented': return 'I ZËNË';
+      case 'maintenance': return 'MIRËMBAJTJE';
       default: return status;
     }
   };
@@ -93,21 +91,9 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">Të Gjitha Statuset</option>
-            <option value="available">E Disponueshme</option>
-            <option value="rented">E Qira</option>
-            <option value="maintenance">Mirëmbajtje</option>
-          </select>
-          
-          <select
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="all">Të Gjitha Kategoritë</option>
-            <option value="economy">Ekonomike</option>
-            <option value="compact">Kompakte</option>
-            <option value="suv">SUV</option>
-            <option value="luxury">Luksoze</option>
+            <option value="available">I LIRË</option>
+            <option value="rented">I ZËNË</option>
+            <option value="maintenance">MIRËMBAJTJE</option>
           </select>
           
           <button

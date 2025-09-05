@@ -185,9 +185,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
-                <option value="active">Aktiv</option>
-                <option value="completed">Përfunduar</option>
-                <option value="cancelled">Anuluar</option>
+                <option value="active">AKTIV</option>
+                <option value="completed">PËRFUNDUAR</option>
+                <option value="cancelled">ANULUAR</option>
               </select>
             </div>
 
