@@ -20,7 +20,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
     status: 'active' as Booking['status']
   });
 
-  const availableCars = cars.filter(car => car.status === 'available');
+  // When editing, show the current car even if it's not available
+  // When creating, only show available cars
+  const availableCars = booking 
+    ? cars.filter(car => car.id === booking.carId) // Show only the current car when editing
+    : cars.filter(car => car.status === 'available'); // Show available cars when creating
 
   useEffect(() => {
     if (booking) {
@@ -36,23 +40,19 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
     }
   }, [booking]);
 
-  const calculateTotalAmount = () => {
+  useEffect(() => {
     if (formData.carId && formData.startDate && formData.endDate) {
       const car = cars.find(c => c.id === formData.carId);
       if (car) {
         const startDate = new Date(formData.startDate);
         const endDate = new Date(formData.endDate);
         const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
         const total = diffDays * car.dailyRate;
         setFormData(prev => ({ ...prev, totalAmount: total }));
       }
     }
-  };
-
-  useEffect(() => {
-    calculateTotalAmount();
-  }, [formData.carId, formData.startDate, formData.endDate]);
+  }, [formData.carId, formData.startDate, formData.endDate, cars]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,13 +121,16 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Car size={16} className="inline mr-1" />
-                Zgjedh Makinën
+                {booking ? 'Makina (Nuk mund të ndryshohet)' : 'Zgjedh Makinën'}
               </label>
               <select
                 name="carId"
                 value={formData.carId}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!!booking}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  booking ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
                 required
               >
                 <option value="">Zgjedh një makinë...</option>
@@ -137,7 +140,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
                   </option>
                 ))}
               </select>
-              {availableCars.length === 0 && (
+              {booking && (
+                <p className="text-xs text-gray-500 mt-1">Makina nuk mund të ndryshohet pasi rezervimi është krijuar</p>
+              )}
+              {!booking && availableCars.length === 0 && (
                 <p className="text-sm text-red-600 mt-1">Nuk ka makina të disponueshme për rezervim</p>
               )}
             </div>

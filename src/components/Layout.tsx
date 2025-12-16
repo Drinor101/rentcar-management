@@ -1,21 +1,30 @@
 import React, { useState } from 'react';
-import { Car, Settings, Calendar, Bell, Menu, X } from 'lucide-react';
+import { Car, Settings, Calendar, FileText, Menu, X, Users, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
   currentPage: string;
   onPageChange: (page: string) => void;
-  notifications: number;
+  onOpenReports: () => void;
+  isAdmin: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, notifications }) => {
+const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, onOpenReports, isAdmin }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { profile, signOut } = useAuth();
 
-  const menuItems = [
+  const menuItems: Array<{
+    id: string;
+    label: string;
+    icon: any;
+    action?: () => void;
+  }> = [
     { id: 'dashboard', label: 'Dashboard', icon: Settings },
     { id: 'cars', label: 'Makina', icon: Car },
     { id: 'bookings', label: 'Rezervime', icon: Calendar },
-    { id: 'notifications', label: 'Njoftime', icon: Bell }
+    { id: 'reports', label: 'Raporte', icon: FileText, action: onOpenReports },
+    ...(isAdmin ? [{ id: 'users', label: 'Përdoruesit', icon: Users }] : [])
   ];
 
   return (
@@ -30,10 +39,10 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, no
       
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static`}>
+        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col`}>
         
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-800">RentCar Pro</h1>
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
+          <h1 className="text-xl font-bold text-gray-800">Flexrent Prishtina</h1>
           <button 
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-1 rounded-md hover:bg-gray-100"
@@ -42,7 +51,19 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, no
           </button>
         </div>
         
-        <nav className="mt-8 px-4">
+        {/* User Info */}
+        {profile && (
+          <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-800">{profile.username}</p>
+                <p className="text-xs text-gray-500 capitalize">{profile.role}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <nav className="mt-8 px-4 flex-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
@@ -51,7 +72,11 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, no
               <button
                 key={item.id}
                 onClick={() => {
-                  onPageChange(item.id);
+                  if (item.action) {
+                    item.action();
+                  } else {
+                    onPageChange(item.id);
+                  }
                   setSidebarOpen(false);
                 }}
                 className={`w-full flex items-center px-4 py-3 mb-2 text-left rounded-lg transition-colors duration-200 ${
@@ -62,15 +87,23 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, no
               >
                 <Icon size={20} className="mr-3" />
                 <span className="font-medium">{item.label}</span>
-                {item.id === 'notifications' && notifications > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    {notifications}
-                  </span>
-                )}
               </button>
             );
           })}
         </nav>
+        
+        {/* Logout Button */}
+        <div className="p-4 border-t border-gray-200 flex-shrink-0">
+          <button
+            onClick={async () => {
+              await signOut();
+            }}
+            className="w-full flex items-center px-4 py-3 text-left rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut size={20} className="mr-3" />
+            <span className="font-medium">Dil</span>
+          </button>
+        </div>
       </div>
       
       {/* Main content */}
@@ -89,7 +122,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, no
               {currentPage === 'dashboard' ? 'Dashboard' :
                currentPage === 'cars' ? 'Menaxhimi i Makinave' :
                currentPage === 'bookings' ? 'Rezervimet' :
-               currentPage === 'notifications' ? 'Njoftime' : currentPage}
+               currentPage === 'users' ? 'Përdoruesit' : currentPage}
             </h2>
             
             <div className="flex items-center space-x-4">

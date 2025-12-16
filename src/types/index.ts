@@ -19,12 +19,32 @@ export interface Booking {
   endDate: string;
   totalAmount: number;
   status: 'active' | 'completed' | 'cancelled';
+  createdBy?: string;
+  createdByName?: string;
 }
 
-export interface Notification {
+export interface Report {
   id: string;
-  type: 'warning' | 'info' | 'success';
-  message: string;
-  date: string;
-  read: boolean;
+  carId: string;
+  carMake: string;
+  carModel: string;
+  clientName: string;
+  clientPhone: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  dailyRate: number;
+  totalAmount: number;
+  status: 'active' | 'completed' | 'cancelled';
+  createdAt: string;
+  createdBy?: string;
+  createdByName?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  role: 'admin' | 'puntor';
+  password?: string;
 }

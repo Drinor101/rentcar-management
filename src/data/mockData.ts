@@ -1,4 +1,4 @@
-import { Car, Booking, Notification } from '../types';
+import { Car, Booking, Report } from '../types';
 
 export const mockCars: Car[] = [
   {
@@ -59,26 +59,96 @@ export const mockBookings: Booking[] = [
   }
 ];
 
-export const mockNotifications: Notification[] = [
+// Dummy report data - will be replaced with Supabase data later
+export const mockReports: Report[] = [
   {
     id: '1',
-    type: 'warning',
-    message: 'BMW X5 (TR 456 CD) - Rezervimi përfundon më 28 Dhjetor 2024',
-    date: '2024-12-15',
-    read: false
+    carId: '2',
+    carMake: 'BMW',
+    carModel: 'X5',
+    clientName: 'Ardit Hoxha',
+    clientPhone: '+355 69 123 4567',
+    startDate: '2024-12-01',
+    endDate: '2024-12-28',
+    days: 27,
+    dailyRate: 80,
+    totalAmount: 2160,
+    status: 'active',
+    createdAt: '2024-11-25T10:00:00Z'
   },
   {
     id: '2',
-    type: 'info',
-    message: 'Rezervim i ri nga Elira Berisha për Toyota Corolla',
-    date: '2024-12-14',
-    read: true
+    carId: '1',
+    carMake: 'Toyota',
+    carModel: 'Corolla',
+    clientName: 'Elira Berisha',
+    clientPhone: '+355 68 987 6543',
+    startDate: '2024-11-15',
+    endDate: '2024-12-20',
+    days: 35,
+    dailyRate: 35,
+    totalAmount: 1225,
+    status: 'completed',
+    createdAt: '2024-11-10T14:30:00Z'
   },
   {
     id: '3',
-    type: 'warning',
-    message: 'Volkswagen Golf ka nevojë për mirëmbajtje',
-    date: '2024-12-13',
-    read: false
+    carId: '3',
+    carMake: 'Volkswagen',
+    carModel: 'Golf',
+    clientName: 'Besnik Krasniqi',
+    clientPhone: '+355 67 111 2222',
+    startDate: '2024-10-01',
+    endDate: '2024-10-15',
+    days: 14,
+    dailyRate: 40,
+    totalAmount: 560,
+    status: 'completed',
+    createdAt: '2024-09-25T09:15:00Z'
+  },
+  {
+    id: '4',
+    carId: '1',
+    carMake: 'Toyota',
+    carModel: 'Corolla',
+    clientName: 'Driton Shala',
+    clientPhone: '+355 69 333 4444',
+    startDate: '2024-11-01',
+    endDate: '2024-11-10',
+    days: 9,
+    dailyRate: 35,
+    totalAmount: 315,
+    status: 'completed',
+    createdAt: '2024-10-28T11:20:00Z'
+  },
+  {
+    id: '5',
+    carId: '2',
+    carMake: 'BMW',
+    carModel: 'X5',
+    clientName: 'Arta Gashi',
+    clientPhone: '+355 68 555 6666',
+    startDate: '2024-09-10',
+    endDate: '2024-09-25',
+    days: 15,
+    dailyRate: 80,
+    totalAmount: 1200,
+    status: 'completed',
+    createdAt: '2024-09-05T16:45:00Z'
+  },
+  {
+    id: '6',
+    carId: '3',
+    carMake: 'Volkswagen',
+    carModel: 'Golf',
+    clientName: 'Flamur Morina',
+    clientPhone: '+355 67 777 8888',
+    startDate: '2024-12-10',
+    endDate: '2024-12-18',
+    days: 8,
+    dailyRate: 40,
+    totalAmount: 320,
+    status: 'active',
+    createdAt: '2024-12-05T13:00:00Z'
   }
 ];

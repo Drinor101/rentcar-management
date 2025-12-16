@@ -1,25 +1,33 @@
 import React, { useState } from 'react';
-import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit } from 'lucide-react';
+import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2 } from 'lucide-react';
 import { Booking, Car as CarType } from '../types';
 import BookingModal from './BookingModal';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface BookingsManagementProps {
   bookings: Booking[];
   cars: CarType[];
   onAddBooking: (booking: Omit<Booking, 'id'>) => void;
   onUpdateBooking: (id: string, booking: Omit<Booking, 'id'>) => void;
+  onDeleteBooking: (id: string) => void;
 }
 
 const BookingsManagement: React.FC<BookingsManagementProps> = ({ 
   bookings, 
   cars, 
   onAddBooking, 
-  onUpdateBooking 
+  onUpdateBooking,
+  onDeleteBooking
 }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('endDate');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; booking: Booking | null }>({
+    isOpen: false,
+    booking: null
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredBookings = bookings
     .filter(booking => statusFilter === 'all' || booking.status === statusFilter)
@@ -180,31 +188,51 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
 
                 {/* Amount & Actions */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Euro size={20} className="text-gray-400" />
-                    <div>
-                      <p className="text-2xl font-bold text-gray-800">€{booking.totalAmount}</p>
-                      <p className="text-sm text-gray-600">Totali</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <Euro size={20} className="text-gray-400" />
+                      <div>
+                        <p className="text-2xl font-bold text-gray-800">
+                          {Number(booking.totalAmount).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-600">Totali</p>
+                      </div>
+                    </div>
+                    
+                    {/* Daily Rate & Days */}
+                    <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Çmimi Ditor:</span>
+                        <span className="font-semibold text-gray-800">€{car?.dailyRate || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Ditët:</span>
+                        <span className="font-semibold text-gray-800">
+                          {Math.ceil(
+                            (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)
+                          ) + 1} ditë
+                        </span>
+                      </div>
                     </div>
                   </div>
                   
-                  {booking.status === 'active' && (
-                    <div className="space-y-2">
-                      <button 
-                        onClick={() => handleEditBooking(booking)}
-                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Edit size={16} />
-                        Ndrysho
-                      </button>
-                      <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
-                        Përfundo Rezervimin
-                      </button>
-                      <button className="w-full bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded-lg text-sm transition-colors">
-                        Zgjat Rezervimin
-                      </button>
-                    </div>
-                  )}
+                  {/* Actions */}
+                  <div className="space-y-2">
+                    <button 
+                      onClick={() => handleEditBooking(booking)}
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Edit size={16} />
+                      Ndrysho
+                    </button>
+                    <button 
+                      onClick={() => setDeleteModal({ isOpen: true, booking: booking })}
+                      className="w-full bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={16} />
+                      Fshi Rezervimin
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -229,6 +257,29 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
           onClose={() => setIsModalOpen(false)}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        title="Fshi Rezervimin"
+        message="A jeni të sigurt që dëshironi të fshini këtë rezervim?"
+        itemName={deleteModal.booking ? `${deleteModal.booking.clientName} - ${new Date(deleteModal.booking.startDate).toLocaleDateString('sq-AL')}` : undefined}
+        onConfirm={async () => {
+          if (deleteModal.booking) {
+            setIsDeleting(true);
+            try {
+              await onDeleteBooking(deleteModal.booking.id);
+              setDeleteModal({ isOpen: false, booking: null });
+            } catch (error) {
+              console.error('Error deleting booking:', error);
+            } finally {
+              setIsDeleting(false);
+            }
+          }
+        }}
+        onCancel={() => setDeleteModal({ isOpen: false, booking: null })}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

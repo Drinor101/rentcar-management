@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, Loader2 } from 'lucide-react';
 import { Car } from '../types';
+import { storageService } from '../services/storageService';
 
 interface CarModalProps {
   car: Car | null;
@@ -15,10 +16,13 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
     year: new Date().getFullYear(),
     color: '',
     licensePlate: '',
-    dailyRate: 0,
+    dailyRate: '' as number | string,
     image: '',
     status: 'available' as Car['status']
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (car) {
@@ -32,30 +36,110 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
         image: car.image,
         status: car.status
       });
+      setImagePreview(car.image);
+    } else {
+      setFormData({
+        make: '',
+        model: '',
+        year: new Date().getFullYear(),
+        color: '',
+        licensePlate: '',
+        dailyRate: '',
+        image: '',
+        status: 'available'
+      });
+      setImagePreview('');
+      setSelectedFile(null);
     }
   }, [car]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Ju lutem zgjidhni një file imazh (JPG, PNG, etc.)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File-i është shumë i madh. Maksimumi është 5MB.');
+      return;
+    }
+
+    setSelectedFile(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload file
+    setUploading(true);
+    try {
+      const imageUrl = await storageService.uploadImage(file, car?.id);
+      setFormData(prev => ({ ...prev, image: imageUrl }));
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Gabim gjatë upload-it të fotos. Ju lutem provoni përsëri.');
+      setSelectedFile(null);
+      setImagePreview(formData.image || '');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    // If there's a selected file but not uploaded yet, upload it first
+    if (selectedFile && !uploading) {
+      setUploading(true);
+      try {
+        const imageUrl = await storageService.uploadImage(selectedFile, car?.id);
+        setFormData(prev => ({ ...prev, image: imageUrl }));
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Gabim gjatë upload-it të fotos. Ju lutem provoni përsëri.');
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
+    // Ensure dailyRate is a number before saving
+    const submitData = {
+      ...formData,
+      dailyRate: typeof formData.dailyRate === 'string' ? parseFloat(formData.dailyRate) || 0 : formData.dailyRate
+    };
+    onSave(submitData);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? parseFloat(value) || 0 : value
-    }));
+    
+    // For dailyRate, allow empty string or valid number
+    if (name === 'dailyRate') {
+      if (value === '' || value === '-') {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      } else {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue) && numValue >= 0) {
+          setFormData(prev => ({ ...prev, [name]: numValue }));
+        }
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'number' ? (value === '' ? '' : parseFloat(value) || 0) : value
+      }));
+    }
   };
 
-  const sampleImages = [
-    'https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg?auto=compress&cs=tinysrgb&w=500',
-    'https://images.pexels.com/photos/244206/pexels-photo-244206.jpeg?auto=compress&cs=tinysrgb&w=500',
-    'https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg?auto=compress&cs=tinysrgb&w=500',
-    'https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg?auto=compress&cs=tinysrgb&w=500',
-    'https://images.pexels.com/photos/193999/pexels-photo-193999.jpeg?auto=compress&cs=tinysrgb&w=500',
-    'https://images.pexels.com/photos/1149137/pexels-photo-1149137.jpeg?auto=compress&cs=tinysrgb&w=500'
-  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -151,12 +235,13 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
                 Çmimi Ditor (EUR)
               </label>
               <input
-                type="number"
+                type="text"
                 name="dailyRate"
-                min="0"
-                step="0.01"
+                inputMode="decimal"
+                pattern="[0-9]*\.?[0-9]*"
                 value={formData.dailyRate}
                 onChange={handleInputChange}
+                placeholder="0.00"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
@@ -184,48 +269,54 @@ const CarModal: React.FC<CarModalProps> = ({ car, onSave, onClose }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Foto e Makinës
             </label>
-            <div className="space-y-3">
-              <input
-                type="url"
-                name="image"
-                placeholder="Fut URL e fotos..."
-                value={formData.image}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
-              
-              <div className="text-sm text-gray-600">Ose zgjidh nga fotot e gatshme:</div>
-              <div className="grid grid-cols-3 gap-2">
-                {sampleImages.map((imageUrl, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, image: imageUrl }))}
-                    className={`relative h-20 rounded-lg overflow-hidden border-2 hover:border-blue-500 transition-colors ${
-                      formData.image === imageUrl ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
-                    }`}
-                  >
-                    <img
-                      src={imageUrl}
-                      alt={`Sample ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
+            <div className="space-y-4">
+              {/* File Upload */}
+              <div>
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {uploading ? (
+                      <>
+                        <Loader2 className="w-10 h-10 mb-2 text-blue-500 animate-spin" />
+                        <p className="text-sm text-gray-600 font-medium">Duke ngarkuar...</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-10 h-10 mb-3 text-gray-400" />
+                        <p className="mb-2 text-sm text-gray-600">
+                          <span className="font-semibold">Kliko për të ngarkuar</span> ose tërhiq këtu
+                        </p>
+                        <p className="text-xs text-gray-500">PNG, JPG, WEBP (MAX. 5MB)</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    disabled={uploading}
+                    required={!car}
+                  />
+                </label>
               </div>
-            </div>
 
-            {formData.image && (
-              <div className="mt-3">
-                <div className="text-sm text-gray-600 mb-2">Pamja:</div>
-                <img
-                  src={formData.image}
-                  alt="Preview"
-                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                />
-              </div>
-            )}
+              {/* Preview */}
+              {(imagePreview || formData.image) && (
+                <div>
+                  <div className="text-sm text-gray-600 mb-2 font-medium">Pamja:</div>
+                  <div className="relative w-full rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img
+                      src={imagePreview || formData.image}
+                      alt="Preview"
+                      className="w-full h-80 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://via.placeholder.com/800x600?text=Image+Not+Found';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-gray-200">

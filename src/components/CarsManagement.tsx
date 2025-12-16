@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { Car } from '../types';
 import CarModal from './CarModal';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface CarsManagementProps {
   cars: Car[];
@@ -20,6 +21,11 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCar, setEditingCar] = useState<Car | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; car: Car | null }>({
+    isOpen: false,
+    car: null
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredCars = cars.filter(car => {
     const matchesSearch = car.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,24 +116,30 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCars.map((car) => (
           <div key={car.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-            <div className="relative h-48 bg-gray-200">
+            <div className="relative h-64 bg-gray-200 overflow-hidden">
               <img
                 src={car.image}
                 alt={`${car.make} ${car.model}`}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                  e.currentTarget.className = 'w-full h-full object-contain bg-gray-100';
+                }}
               />
-              <div className="absolute top-3 right-3">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(car.status)}`}>
-                  {getStatusText(car.status)}
-                </span>
-              </div>
             </div>
             
             <div className="p-4">
-              <h3 className="text-lg font-semibold text-gray-800">{car.make} {car.model}</h3>
-              <p className="text-sm text-gray-600 mb-2">{car.year} • {car.color}</p>
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-800">{car.make} {car.model}</h3>
+                  <p className="text-sm text-gray-600">{car.year} • {car.color}</p>
+                </div>
+                <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold shadow-sm ${getStatusColor(car.status)}`}>
+                  {getStatusText(car.status)}
+                </span>
+              </div>
               
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex justify-between items-center mb-3 pt-2 border-t border-gray-100">
                 <span className="text-sm text-gray-600">Targë: {car.licensePlate}</span>
                 <span className="text-lg font-bold text-blue-600">€{car.dailyRate}/ditë</span>
               </div>
@@ -141,7 +153,7 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
                   Ndrysho
                 </button>
                 <button
-                  onClick={() => onDeleteCar(car.id)}
+                  onClick={() => setDeleteModal({ isOpen: true, car: car })}
                   className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   <Trash2 size={16} />
@@ -168,6 +180,29 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
           onClose={() => setIsModalOpen(false)}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        title="Fshi Makinën"
+        message="A jeni të sigurt që dëshironi të fshini këtë makinë?"
+        itemName={deleteModal.car ? `${deleteModal.car.make} ${deleteModal.car.model} (${deleteModal.car.licensePlate})` : undefined}
+        onConfirm={async () => {
+          if (deleteModal.car) {
+            setIsDeleting(true);
+            try {
+              await onDeleteCar(deleteModal.car.id);
+              setDeleteModal({ isOpen: false, car: null });
+            } catch (error) {
+              console.error('Error deleting car:', error);
+            } finally {
+              setIsDeleting(false);
+            }
+          }
+        }}
+        onCancel={() => setDeleteModal({ isOpen: false, car: null })}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
