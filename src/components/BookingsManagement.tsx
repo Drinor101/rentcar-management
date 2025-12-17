@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2 } from 'lucide-react';
+import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2, UserCircle, Mail } from 'lucide-react';
 import { Booking, Car as CarType } from '../types';
 import BookingModal from './BookingModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface BookingsManagementProps {
-  bookings: Booking[];
+  bookings: Booking[]; // Filtered bookings for list view
+  allBookings: Booking[]; // All bookings for conflict checking
   cars: CarType[];
   onAddBooking: (booking: Omit<Booking, 'id'>) => void;
   onUpdateBooking: (id: string, booking: Omit<Booking, 'id'>) => void;
@@ -13,7 +14,8 @@ interface BookingsManagementProps {
 }
 
 const BookingsManagement: React.FC<BookingsManagementProps> = ({ 
-  bookings, 
+  bookings,
+  allBookings,
   cars, 
   onAddBooking, 
   onUpdateBooking,
@@ -161,6 +163,18 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
                       <Phone size={16} />
                       <span>{booking.clientPhone}</span>
                     </div>
+                    {booking.clientEmail && (
+                      <div className="flex items-center gap-2">
+                        <Mail size={16} />
+                        <span>{booking.clientEmail}</span>
+                      </div>
+                    )}
+                    {booking.createdByName && (
+                      <div className="flex items-center gap-2">
+                        <UserCircle size={16} />
+                        <span className="text-gray-500">Krijuar nga: <span className="font-medium text-gray-700">{booking.createdByName}</span></span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -177,12 +191,23 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
                   <div className="space-y-2 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <Calendar size={16} />
-                      <span>Nga: {new Date(booking.startDate).toLocaleDateString('sq-AL')}</span>
+                      <span>
+                        Nga: {new Date(booking.startDate).toLocaleDateString('sq-AL')}
+                        {booking.pickUpTime && <span className="ml-1 font-medium">({booking.pickUpTime.split(':').slice(0, 2).join(':')})</span>}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar size={16} />
-                      <span>Deri: {new Date(booking.endDate).toLocaleDateString('sq-AL')}</span>
+                      <span>
+                        Deri: {new Date(booking.endDate).toLocaleDateString('sq-AL')}
+                        {booking.returnTime && <span className="ml-1 font-medium">({booking.returnTime.split(':').slice(0, 2).join(':')})</span>}
+                      </span>
                     </div>
+                    {booking.discount !== undefined && booking.discount !== null && Number(booking.discount) > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-orange-600 font-medium">Zbritje: {booking.discount}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -253,6 +278,7 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
         <BookingModal
           booking={editingBooking}
           cars={cars}
+          bookings={allBookings}
           onSave={handleSaveBooking}
           onClose={() => setIsModalOpen(false)}
         />

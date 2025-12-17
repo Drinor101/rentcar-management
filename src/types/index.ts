@@ -15,9 +15,13 @@ export interface Booking {
   carId: string;
   clientName: string;
   clientPhone: string;
-  startDate: string;
-  endDate: string;
+  clientEmail: string;
+  startDate: string; // Date only (YYYY-MM-DD)
+  pickUpTime?: string; // Time in HH:mm format (e.g., "09:00")
+  endDate: string; // Date only (YYYY-MM-DD)
+  returnTime?: string; // Time in HH:mm format (e.g., "14:00")
   totalAmount: number;
+  discount?: number; // Discount percentage (0-100)
   status: 'active' | 'completed' | 'cancelled';
   createdBy?: string;
   createdByName?: string;
@@ -30,11 +34,15 @@ export interface Report {
   carModel: string;
   clientName: string;
   clientPhone: string;
+  clientEmail: string;
   startDate: string;
+  pickUpTime?: string;
   endDate: string;
+  returnTime?: string;
   days: number;
   dailyRate: number;
   totalAmount: number;
+  discount?: number; // Discount percentage (0-100)
   status: 'active' | 'completed' | 'cancelled';
   createdAt: string;
   createdBy?: string;

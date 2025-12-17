@@ -306,6 +306,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Data Përfundimit</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Ditët</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Çmimi Ditor</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Zbritje</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Shuma Totale</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Statusi</th>
                   </tr>
@@ -318,13 +319,30 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
                       <td className="px-4 py-3 text-sm text-gray-600">{report.clientPhone}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {new Date(report.startDate).toLocaleDateString('sq-AL')}
+                        {report.pickUpTime && (
+                          <span className="ml-1 text-gray-500">
+                            ({report.pickUpTime.split(':').slice(0, 2).join(':')})
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {new Date(report.endDate).toLocaleDateString('sq-AL')}
+                        {report.returnTime && (
+                          <span className="ml-1 text-gray-500">
+                            ({report.returnTime.split(':').slice(0, 2).join(':')})
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{report.days}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">€{report.dailyRate}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900">€{report.totalAmount}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {report.discount && report.discount > 0 ? (
+                          <span className="text-orange-600 font-medium">{report.discount}%</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900">€{Number(report.totalAmount).toFixed(2)}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(report.status)}`}>
                           {getStatusText(report.status)}

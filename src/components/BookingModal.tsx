@@ -1,30 +1,116 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, User, Phone, Car } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Calendar, User, Phone, Car, AlertCircle, Mail, Clock } from 'lucide-react';
 import { Booking, Car as CarType } from '../types';
+import { calculateRentalDays, checkDateTimeOverlap } from '../utils/dateCalculations';
 
 interface BookingModalProps {
   booking: Booking | null;
   cars: CarType[];
+  bookings: Booking[];
   onSave: (booking: Omit<Booking, 'id'>) => void;
   onClose: () => void;
 }
 
-const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onClose }) => {
-  const [formData, setFormData] = useState({
+const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, onSave, onClose }) => {
+  const [formData, setFormData] = useState<{
+    carId: string;
+    clientName: string;
+    clientPhone: string;
+    clientEmail: string;
+    startDate: string;
+    pickUpTime: string;
+    endDate: string;
+    returnTime: string;
+    totalAmount: number;
+    discount: number | string; // Allow string for empty input
+    status: Booking['status'];
+  }>({
     carId: '',
     clientName: '',
     clientPhone: '',
+    clientEmail: '',
     startDate: '',
+    pickUpTime: '',
     endDate: '',
+    returnTime: '',
     totalAmount: 0,
-    status: 'active' as Booking['status']
+    discount: '',
+    status: 'active'
   });
 
-  // When editing, show the current car even if it's not available
-  // When creating, only show available cars
+  // Check for date/time conflicts with active bookings
+  const checkDateConflict = (
+    carId: string, 
+    startDate: string, 
+    pickUpTime: string | undefined,
+    endDate: string, 
+    returnTime: string | undefined,
+    excludeBookingId?: string
+  ): Booking[] => {
+    if (!carId || !startDate || !endDate) return [];
+    
+    // Normalize empty strings to undefined
+    const normalizedPickUpTime = pickUpTime && pickUpTime.trim() !== '' ? pickUpTime : undefined;
+    const normalizedReturnTime = returnTime && returnTime.trim() !== '' ? returnTime : undefined;
+    
+    return bookings.filter(b => {
+      // Skip if this is the booking being edited
+      if (excludeBookingId && b.id === excludeBookingId) return false;
+      
+      // Only check active bookings
+      if (b.status !== 'active') return false;
+      
+      // Check if it's for the same car
+      if (b.carId !== carId) return false;
+      
+      // Normalize booking times (empty strings to undefined)
+      const bookingPickUpTime = b.pickUpTime && b.pickUpTime.trim() !== '' ? b.pickUpTime : undefined;
+      const bookingReturnTime = b.returnTime && b.returnTime.trim() !== '' ? b.returnTime : undefined;
+      
+      // Check for datetime overlap using the utility function
+      return checkDateTimeOverlap(
+        startDate,
+        normalizedPickUpTime,
+        endDate,
+        normalizedReturnTime,
+        b.startDate,
+        bookingPickUpTime,
+        b.endDate,
+        bookingReturnTime
+      );
+    });
+  };
+
+  // Get active bookings for a specific car
+  const getActiveBookingsForCar = (carId: string): Booking[] => {
+    if (!carId) return [];
+    return bookings.filter(b => b.carId === carId && b.status === 'active');
+  };
+
+  // When editing, show the current car
+  // When creating, show all cars (not just available ones)
   const availableCars = booking 
     ? cars.filter(car => car.id === booking.carId) // Show only the current car when editing
-    : cars.filter(car => car.status === 'available'); // Show available cars when creating
+    : cars; // Show all cars when creating
+
+  // Check for conflicts with current form data
+  const conflictingBookings = useMemo(() => {
+    if (!formData.carId || !formData.startDate || !formData.endDate) return [];
+    return checkDateConflict(
+      formData.carId, 
+      formData.startDate, 
+      formData.pickUpTime || undefined,
+      formData.endDate, 
+      formData.returnTime || undefined,
+      booking?.id
+    );
+  }, [formData.carId, formData.startDate, formData.pickUpTime, formData.endDate, formData.returnTime, booking?.id, bookings]);
+
+  // Get active bookings for selected car
+  const activeBookingsForSelectedCar = useMemo(() => {
+    if (!formData.carId) return [];
+    return getActiveBookingsForCar(formData.carId);
+  }, [formData.carId, bookings]);
 
   useEffect(() => {
     if (booking) {
@@ -32,9 +118,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
         carId: booking.carId,
         clientName: booking.clientName,
         clientPhone: booking.clientPhone,
+        clientEmail: booking.clientEmail || '',
         startDate: booking.startDate,
+        pickUpTime: booking.pickUpTime || '',
         endDate: booking.endDate,
+        returnTime: booking.returnTime || '',
         totalAmount: booking.totalAmount,
+        discount: booking.discount !== undefined && booking.discount !== null ? booking.discount : '',
         status: booking.status
       });
     }
@@ -44,30 +134,80 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
     if (formData.carId && formData.startDate && formData.endDate) {
       const car = cars.find(c => c.id === formData.carId);
       if (car) {
-        const startDate = new Date(formData.startDate);
-        const endDate = new Date(formData.endDate);
-        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
-        const total = diffDays * car.dailyRate;
-        setFormData(prev => ({ ...prev, totalAmount: total }));
+        // Calculate rental days using Excel formula logic
+        const rentalDays = calculateRentalDays(
+          formData.startDate,
+          formData.pickUpTime || undefined,
+          formData.endDate,
+          formData.returnTime || undefined
+        );
+        
+        const baseTotal = rentalDays * car.dailyRate;
+        
+        // Apply discount if provided (handle empty string as 0)
+        const discount = formData.discount === '' ? 0 : (formData.discount || 0);
+        const discountAmount = (baseTotal * discount) / 100;
+        const finalTotal = baseTotal - discountAmount;
+        
+        setFormData(prev => ({ ...prev, totalAmount: finalTotal }));
       }
     }
-  }, [formData.carId, formData.startDate, formData.endDate, cars]);
+  }, [formData.carId, formData.startDate, formData.pickUpTime, formData.endDate, formData.returnTime, formData.discount, cars]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    // Check for conflicts before submitting
+    if (conflictingBookings.length > 0) {
+      // Don't submit if there are conflicts
+      return;
+    }
+    
+    // Convert empty discount string to 0 before saving
+    const dataToSave = {
+      ...formData,
+      discount: formData.discount === '' ? 0 : (formData.discount || 0)
+    };
+    
+    onSave(dataToSave);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? parseFloat(value) || 0 : value
-    }));
+    
+    if (name === 'discount') {
+      // Allow empty string for discount, convert to 0 only when needed
+      const numValue = value === '' ? '' : parseFloat(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: numValue === '' ? '' : (isNaN(numValue) ? 0 : numValue)
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'number' ? parseFloat(value) || 0 : value
+      }));
+    }
   };
 
   const selectedCar = cars.find(c => c.id === formData.carId);
+
+  // Helper function to format date and time (24-hour format)
+  const formatDateTime = (date: string, time?: string) => {
+    const dateObj = new Date(date);
+    const dateStr = dateObj.toLocaleDateString('sq-AL', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    // Time is already in HH:mm format from input (24-hour), display it as is
+    // If time exists, format it properly (remove seconds if present)
+    if (time) {
+      const timeOnly = time.split(':').slice(0, 2).join(':'); // Keep only HH:mm
+      return `${dateStr} ${timeOnly}`;
+    }
+    return dateStr;
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -118,6 +258,22 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Mail size={16} className="inline mr-1" />
+                Email
+              </label>
+              <input
+                type="email"
+                name="clientEmail"
+                value={formData.clientEmail}
+                onChange={handleInputChange}
+                placeholder="klient@email.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              />
+            </div>
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Car size={16} className="inline mr-1" />
@@ -134,11 +290,17 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
                 required
               >
                 <option value="">Zgjedh një makinë...</option>
-                {availableCars.map((car) => (
-                  <option key={car.id} value={car.id}>
-                    {car.make} {car.model} ({car.year}) - €{car.dailyRate}/ditë
-                  </option>
-                ))}
+                {availableCars.map((car) => {
+                  const activeBookings = getActiveBookingsForCar(car.id);
+                  const hasActiveBookings = activeBookings.length > 0;
+                  const statusText = hasActiveBookings ? ' - E ZËNË' : '';
+                  
+                  return (
+                    <option key={car.id} value={car.id}>
+                      {car.make} {car.model} ({car.year}) - €{car.dailyRate}/ditë{statusText}
+                    </option>
+                  );
+                })}
               </select>
               {booking && (
                 <p className="text-xs text-gray-500 mt-1">Makina nuk mund të ndryshohet pasi rezervimi është krijuar</p>
@@ -158,10 +320,24 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
                 name="startDate"
                 value={formData.startDate}
                 onChange={handleInputChange}
-                min={new Date().toISOString().split('T')[0]}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Clock size={16} className="inline mr-1" />
+                Ora e Marrjes
+              </label>
+              <input
+                type="time"
+                name="pickUpTime"
+                value={formData.pickUpTime}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">Opsionale</p>
             </div>
 
             <div>
@@ -174,10 +350,27 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
                 name="endDate"
                 value={formData.endDate}
                 onChange={handleInputChange}
-                min={formData.startDate || new Date().toISOString().split('T')[0]}
+                min={formData.startDate || undefined}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Clock size={16} className="inline mr-1" />
+                Ora e Kthimit
+              </label>
+              <input
+                type="time"
+                name="returnTime"
+                value={formData.returnTime}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Opsionale - Nëse pas 13:30, shtohet 1 ditë shtesë
+              </p>
             </div>
 
             <div>
@@ -199,42 +392,148 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Shuma Totale (EUR)
+                Zbritje (%)
               </label>
               <div className="relative">
                 <input
                   type="number"
-                  name="totalAmount"
-                  value={formData.totalAmount}
+                  name="discount"
+                  value={formData.discount === '' ? '' : formData.discount}
                   onChange={handleInputChange}
                   min="0"
+                  max="100"
                   step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="absolute right-3 top-2 text-gray-500">%</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Opsionale - Zbritje në përqindje (0-100%)</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Shuma Totale (EUR)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="totalAmount"
+                  value={formData.totalAmount.toFixed(2)}
                   readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                 />
                 <span className="absolute right-3 top-2 text-gray-500">€</span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Shuma llogaritet automatikisht bazuar në ditët dhe çmimin ditor</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {(() => {
+                  const rentalDays = calculateRentalDays(
+                    formData.startDate,
+                    formData.pickUpTime || undefined,
+                    formData.endDate,
+                    formData.returnTime || undefined
+                  );
+                  
+                  let message = `Ditët e qirasë: ${rentalDays} ditë`;
+                  
+                  if (formData.returnTime) {
+                    const [hours, minutes] = formData.returnTime.split(':').map(Number);
+                    if (hours > 13 || (hours === 13 && minutes > 30)) {
+                      message += ' (shtuar 1 ditë për kohën pas 13:30)';
+                    }
+                  }
+                  
+                  if (formData.discount !== '' && formData.discount > 0) {
+                    message += ` | Zbritje: ${formData.discount}%`;
+                  }
+                  
+                  return message;
+                })()}
+              </p>
             </div>
           </div>
 
           {selectedCar && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-2">Detajet e Makinës së Zgjedhur</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-blue-600">Makina:</span> {selectedCar.make} {selectedCar.model}
-                </div>
-                <div>
-                  <span className="text-blue-600">Viti:</span> {selectedCar.year}
-                </div>
-                <div>
-                  <span className="text-blue-600">Ngjyra:</span> {selectedCar.color}
-                </div>
-                <div>
-                  <span className="text-blue-600">Çmimi:</span> €{selectedCar.dailyRate}/ditë
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-800 mb-2">Detajet e Makinës së Zgjedhur</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-blue-600">Makina:</span> {selectedCar.make} {selectedCar.model}
+                  </div>
+                  <div>
+                    <span className="text-blue-600">Viti:</span> {selectedCar.year}
+                  </div>
+                  <div>
+                    <span className="text-blue-600">Ngjyra:</span> {selectedCar.color}
+                  </div>
+                  <div>
+                    <span className="text-blue-600">Çmimi:</span> €{selectedCar.dailyRate}/ditë
+                  </div>
                 </div>
               </div>
+
+              {/* Show active bookings for selected car */}
+              {activeBookingsForSelectedCar.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                    <AlertCircle size={16} />
+                    Rezervime Aktive për Këtë Makinë
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    {activeBookingsForSelectedCar.map((activeBooking) => {
+                      // Skip if this is the booking being edited
+                      if (booking && activeBooking.id === booking.id) return null;
+                      
+                      return (
+                        <div key={activeBooking.id} className="bg-white rounded p-2 border border-yellow-200">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <span className="font-medium text-yellow-800">{activeBooking.clientName}</span>
+                              <span className="text-yellow-600 ml-2">({activeBooking.clientPhone})</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-yellow-700 font-medium block">
+                                {formatDateTime(activeBooking.startDate, activeBooking.pickUpTime)} - {formatDateTime(activeBooking.endDate, activeBooking.returnTime)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Show conflict warning if dates overlap */}
+              {conflictingBookings.length > 0 && formData.startDate && formData.endDate && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h4 className="font-medium text-red-800 mb-2 flex items-center gap-2">
+                    <AlertCircle size={16} />
+                    Konflikt me Rezervime Ekzistuese!
+                  </h4>
+                  <p className="text-sm text-red-700 mb-3">
+                    Makina është e rezervuar për datat që keni zgjedhur. Ju lutem zgjidhni data të tjera.
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    {conflictingBookings.map((conflict) => (
+                      <div key={conflict.id} className="bg-white rounded p-2 border border-red-200">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-medium text-red-800">{conflict.clientName}</span>
+                            <span className="text-red-600 ml-2">({conflict.clientPhone})</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-red-700 font-medium block">
+                              {formatDateTime(conflict.startDate, conflict.pickUpTime)} - {formatDateTime(conflict.endDate, conflict.returnTime)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -248,7 +547,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, onSave, onCl
             </button>
             <button
               type="submit"
-              disabled={availableCars.length === 0}
+              disabled={availableCars.length === 0 || conflictingBookings.length > 0}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {booking ? 'Ndrysho' : 'Shto Rezervimin'}

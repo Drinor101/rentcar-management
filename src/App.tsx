@@ -18,7 +18,8 @@ function AppContent() {
   const { user, profile, loading: authLoading, isAdmin } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [cars, setCars] = useState<Car[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]); // Filtered bookings for list view
+  const [allBookings, setAllBookings] = useState<Booking[]>([]); // All bookings for conflict checking
   const [reports, setReports] = useState<Report[]>([]);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,17 +33,38 @@ function AppContent() {
       setLoading(true);
       setError(null);
       
+      // Auto-complete expired bookings (where end_date has passed)
+      try {
+        const { updatedCount, carIds } = await bookingsService.autoCompleteExpired();
+        if (updatedCount > 0) {
+          console.log(`Auto-completed ${updatedCount} expired booking(s)`);
+          // Update car statuses if any bookings were completed
+          if (carIds.length > 0) {
+            // Reload cars to reflect status changes
+            const updatedCars = await carsService.getAll();
+            setCars(updatedCars);
+          }
+        }
+      } catch (err) {
+        // If auto-complete fails, continue loading data anyway
+        console.warn('Failed to auto-complete expired bookings:', err);
+      }
+      
       // All users can see all cars
       const carsData = await carsService.getAll();
       setCars(carsData);
       
-      // Filter bookings based on role
+      // Always load all bookings for conflict checking in modal
+      const allBookingsData = await bookingsService.getAll();
+      setAllBookings(allBookingsData);
+      
+      // Filter bookings for list view based on role
       let bookingsData: Booking[];
       if (isAdmin) {
-        bookingsData = await bookingsService.getAll();
+        bookingsData = allBookingsData;
       } else {
-        // Puntor sees only their own bookings
-        bookingsData = await bookingsService.getByUserId(user.id);
+        // Puntor sees only their own bookings in list view
+        bookingsData = allBookingsData.filter(b => b.createdBy === user.id);
       }
       setBookings(bookingsData);
       
@@ -69,6 +91,46 @@ function AppContent() {
       loadAllData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, profile, isAdmin]);
+
+  // Auto-check for expired bookings every minute
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    // Check immediately on mount (already handled by loadAllData, but check again after a short delay)
+    const checkExpiredBookings = async () => {
+      try {
+        const { updatedCount, carIds } = await bookingsService.autoCompleteExpired();
+        if (updatedCount > 0) {
+          console.log(`Auto-completed ${updatedCount} expired booking(s)`);
+          // Reload bookings and cars to reflect status changes
+          const allBookingsData = await bookingsService.getAll();
+          setAllBookings(allBookingsData);
+          
+          // Filter bookings for list view based on role
+          let bookingsData: Booking[];
+          if (isAdmin) {
+            bookingsData = allBookingsData;
+          } else {
+            bookingsData = allBookingsData.filter(b => b.createdBy === user.id);
+          }
+          setBookings(bookingsData);
+          
+          // Update cars if any bookings were completed
+          if (carIds.length > 0) {
+            const updatedCars = await carsService.getAll();
+            setCars(updatedCars);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to auto-complete expired bookings:', err);
+      }
+    };
+
+    // Check every minute (60000 ms)
+    const interval = setInterval(checkExpiredBookings, 60000);
+
+    return () => clearInterval(interval);
   }, [user, profile, isAdmin]);
 
   // Generate all reports from Supabase
@@ -170,7 +232,14 @@ function AppContent() {
         createdBy: user.id,
       };
       const newBooking = await bookingsService.create(bookingWithUser);
-      setBookings(prev => [...prev, newBooking]);
+      
+      // Update allBookings for conflict checking
+      setAllBookings(prev => [...prev, newBooking]);
+      
+      // Update filtered bookings for list view
+      if (isAdmin || newBooking.createdBy === user.id) {
+        setBookings(prev => [...prev, newBooking]);
+      }
       
       // Update car status to rented if booking is active
       if (bookingData.status === 'active') {
@@ -196,15 +265,25 @@ function AppContent() {
   };
 
   const handleUpdateBooking = async (id: string, bookingData: Omit<Booking, 'id'>) => {
-    const oldBooking = bookings.find(b => b.id === id);
+    const oldBooking = allBookings.find(b => b.id === id);
     
-    // Optimistic update
+    // Optimistic update for allBookings
+    setAllBookings(prev => prev.map(booking => 
+      booking.id === id ? { ...booking, ...bookingData } as Booking : booking
+    ));
+    
+    // Optimistic update for filtered bookings
     setBookings(prev => prev.map(booking => 
       booking.id === id ? { ...booking, ...bookingData } as Booking : booking
     ));
     
     try {
       const updatedBooking = await bookingsService.update(id, bookingData);
+      
+      // Update allBookings
+      setAllBookings(prev => prev.map(booking => booking.id === id ? updatedBooking : booking));
+      
+      // Update filtered bookings
       setBookings(prev => prev.map(booking => booking.id === id ? updatedBooking : booking));
       
       // Update car status based on booking status
@@ -244,7 +323,10 @@ function AppContent() {
       toast.success('Rezervimi u përditësua me sukses!');
     } catch (err) {
       // Rollback on error
-      setBookings(prev => prev.map(booking => booking.id === id ? oldBooking! : booking));
+      if (oldBooking) {
+        setAllBookings(prev => prev.map(booking => booking.id === id ? oldBooking : booking));
+        setBookings(prev => prev.map(booking => booking.id === id ? oldBooking : booking));
+      }
       console.error('Error updating booking:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to update booking';
       setError(errorMessage);
@@ -253,9 +335,12 @@ function AppContent() {
   };
 
   const handleDeleteBooking = async (id: string) => {
-    const bookingToDelete = bookings.find(b => b.id === id);
+    const bookingToDelete = allBookings.find(b => b.id === id);
     
-    // Optimistic update
+    // Optimistic update for allBookings
+    setAllBookings(prev => prev.filter(b => b.id !== id));
+    
+    // Optimistic update for filtered bookings
     setBookings(prev => prev.filter(b => b.id !== id));
     
     // If booking was active, make car available optimistically
@@ -283,9 +368,16 @@ function AppContent() {
     } catch (err) {
       // Rollback on error
       if (bookingToDelete) {
-        setBookings(prev => [...prev, bookingToDelete].sort((a, b) => 
+        setAllBookings(prev => [...prev, bookingToDelete].sort((a, b) => 
           new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
         ));
+        
+        // Rollback filtered bookings only if it was in the list
+        if (isAdmin || bookingToDelete.createdBy === user?.id) {
+          setBookings(prev => [...prev, bookingToDelete].sort((a, b) => 
+            new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+          ));
+        }
         
         if (bookingToDelete.status === 'active') {
           setCars(prev => prev.map(car => 
@@ -341,7 +433,8 @@ function AppContent() {
       case 'bookings':
         return (
           <BookingsManagement 
-            bookings={bookings} 
+            bookings={bookings}
+            allBookings={allBookings}
             cars={cars}
             onAddBooking={handleAddBooking}
             onUpdateBooking={handleUpdateBooking}
