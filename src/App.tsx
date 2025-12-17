@@ -162,32 +162,10 @@ function AppContent() {
       const updatedCar = await carsService.update(id, carData);
       setCars(prev => prev.map(car => car.id === id ? updatedCar : car));
       
-      // If daily rate changed, update active bookings for this car
-      if (oldCar && oldCar.dailyRate !== carData.dailyRate) {
-        const activeBookingsForCar = bookings.filter(
-          b => b.carId === id && b.status === 'active'
-        );
-        
-        for (const booking of activeBookingsForCar) {
-          const startDate = new Date(booking.startDate);
-          const endDate = new Date(booking.endDate);
-          const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
-          const newTotalAmount = days * carData.dailyRate;
-          
-          await bookingsService.update(booking.id, {
-            ...booking,
-            totalAmount: newTotalAmount
-          });
-        }
-        
-        // Reload bookings to reflect changes
-        const updatedBookings = await bookingsService.getAll();
-        setBookings(updatedBookings);
-        
-        // Reload reports
-        const updatedReports = await reportsService.getAll();
-        setReports(updatedReports);
-      }
+      // Note: We do NOT update existing bookings when car price changes.
+      // Existing bookings (active, completed, or cancelled) keep their original 
+      // daily_rate_at_booking and total_amount that were set when the booking was created.
+      // Only NEW bookings will use the new car price.
       
       toast.success('Makina u përditësua me sukses!');
     } catch (err) {
@@ -238,7 +216,7 @@ function AppContent() {
       
       // Update filtered bookings for list view
       if (isAdmin || newBooking.createdBy === user.id) {
-        setBookings(prev => [...prev, newBooking]);
+      setBookings(prev => [...prev, newBooking]);
       }
       
       // Update car status to rented if booking is active
@@ -433,7 +411,7 @@ function AppContent() {
       case 'bookings':
         return (
           <BookingsManagement 
-            bookings={bookings}
+            bookings={bookings} 
             allBookings={allBookings}
             cars={cars}
             onAddBooking={handleAddBooking}

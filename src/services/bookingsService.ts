@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Booking } from '../types';
+import { carsService } from './carsService';
 
 // Convert Supabase booking to app Booking type
 const mapBookingFromDB = (booking: any): Booking => ({
@@ -14,6 +15,9 @@ const mapBookingFromDB = (booking: any): Booking => ({
   returnTime: booking.return_time || undefined,
   totalAmount: Number(booking.total_amount),
   discount: booking.discount !== null && booking.discount !== undefined ? Number(booking.discount) : undefined,
+  isPaid: booking.is_paid !== null && booking.is_paid !== undefined ? Boolean(booking.is_paid) : false,
+  paymentMethod: booking.payment_method || undefined,
+  dailyRateAtBooking: booking.daily_rate_at_booking !== null && booking.daily_rate_at_booking !== undefined ? Number(booking.daily_rate_at_booking) : undefined,
   status: booking.status,
   createdBy: booking.created_by || undefined,
   createdByName: booking.created_by_name || booking.users?.username || undefined,
@@ -31,6 +35,8 @@ const mapBookingToDB = (booking: Omit<Booking, 'id'>): any => ({
   return_time: booking.returnTime || null,
   total_amount: booking.totalAmount,
   discount: booking.discount !== undefined ? booking.discount : 0,
+  is_paid: booking.isPaid !== undefined ? booking.isPaid : false,
+  payment_method: booking.paymentMethod || null,
   status: booking.status,
   created_by: booking.createdBy || undefined,
 });
@@ -138,7 +144,16 @@ export const bookingsService = {
 
   // Create new booking
   async create(booking: Omit<Booking, 'id'>): Promise<Booking> {
+    // Get the car's daily rate at the time of booking creation
+    const car = await carsService.getById(booking.carId);
+    if (!car) {
+      throw new Error('Car not found');
+    }
+    
     const bookingData = mapBookingToDB(booking);
+    // Add the daily rate at booking time
+    bookingData.daily_rate_at_booking = car.dailyRate;
+    
     const { data, error } = await (supabase
       .from('bookings') as any)
       .insert(bookingData as any)
@@ -169,7 +184,16 @@ export const bookingsService = {
   async update(id: string, booking: Partial<Omit<Booking, 'id'>>): Promise<Booking> {
     const updateData: any = {};
     
-    if (booking.carId !== undefined) updateData.car_id = booking.carId;
+    // If car is being changed, update daily_rate_at_booking to the new car's rate
+    if (booking.carId !== undefined) {
+      updateData.car_id = booking.carId;
+      // Get the new car's daily rate and save it
+      const car = await carsService.getById(booking.carId);
+      if (!car) {
+        throw new Error('Car not found');
+      }
+      updateData.daily_rate_at_booking = car.dailyRate;
+    }
     if (booking.clientName !== undefined) updateData.client_name = booking.clientName;
     if (booking.clientPhone !== undefined) updateData.client_phone = booking.clientPhone;
     if (booking.clientEmail !== undefined) updateData.client_email = booking.clientEmail || null;
@@ -179,6 +203,8 @@ export const bookingsService = {
     if (booking.returnTime !== undefined) updateData.return_time = booking.returnTime || null;
     if (booking.totalAmount !== undefined) updateData.total_amount = booking.totalAmount;
     if (booking.discount !== undefined) updateData.discount = booking.discount || 0;
+    if (booking.isPaid !== undefined) updateData.is_paid = booking.isPaid;
+    if (booking.paymentMethod !== undefined) updateData.payment_method = booking.paymentMethod || null;
     if (booking.status !== undefined) updateData.status = booking.status;
 
     const { data, error } = await (supabase

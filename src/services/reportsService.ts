@@ -21,6 +21,8 @@ const mapReportFromDB = (report: ReportRow): Report => ({
   dailyRate: Number(report.daily_rate),
   totalAmount: Number(report.total_amount),
   discount: (report as any).discount !== null && (report as any).discount !== undefined ? Number((report as any).discount) : undefined,
+  isPaid: (report as any).is_paid !== null && (report as any).is_paid !== undefined ? Boolean((report as any).is_paid) : false,
+  paymentMethod: (report as any).payment_method || undefined,
   status: report.status,
   createdAt: report.created_at,
   createdBy: (report as any).created_by || undefined,

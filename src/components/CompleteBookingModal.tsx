@@ -39,7 +39,9 @@ const CompleteBookingModal: React.FC<CompleteBookingModalProps> = ({
   const originalDays = Math.ceil((originalEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   
   // Calculate new total amount based on actual days
-  const newTotalAmount = car ? actualDays * car.dailyRate : booking.totalAmount;
+  // Use the daily rate at booking time, not the current car rate
+  const dailyRate = booking.dailyRateAtBooking || (car ? car.dailyRate : 0);
+  const newTotalAmount = dailyRate > 0 ? actualDays * dailyRate : booking.totalAmount;
   const amountDifference = newTotalAmount - booking.totalAmount;
 
   const handleSubmit = (e: React.FormEvent) => {

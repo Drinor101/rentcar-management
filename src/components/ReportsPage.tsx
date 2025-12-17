@@ -85,7 +85,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
 
   // Export to CSV
   const handleExportCSV = () => {
-    const headers = ['ID', 'Makina', 'Klienti', 'Telefoni', 'Data Fillimit', 'Data Përfundimit', 'Ditët', 'Çmimi Ditor', 'Shuma Totale', 'Statusi', 'Data Krijimit'];
+    const headers = ['ID', 'Makina', 'Klienti', 'Telefoni', 'Data Fillimit', 'Data Përfundimit', 'Ditët', 'Çmimi Ditor', 'Zbritje', 'Shuma Totale', 'E paguar', 'Metoda e Pagesës', 'Statusi', 'Data Krijimit'];
     const rows = filteredReports.map(report => [
       report.id,
       `${report.carMake} ${report.carModel}`,
@@ -100,7 +100,16 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
         report.returnTime
       ).toString(),
       `€${report.dailyRate}`,
-      `€${report.totalAmount}`,
+      report.discount && report.discount > 0 ? `${report.discount}%` : '-',
+      `€${Number(report.totalAmount) % 1 === 0 ? Number(report.totalAmount).toFixed(0) : Number(report.totalAmount).toFixed(2)}`,
+      report.isPaid ? 'Po' : 'Jo',
+      report.paymentMethod ? (
+        report.paymentMethod === 'cash' ? 'Cash' : 
+        report.paymentMethod === 'card' ? 'Kartë' : 
+        report.paymentMethod === 'bank_transfer' ? 'Transfer Bankar' : 
+        report.paymentMethod === 'cheque' ? 'Çek' : 
+        'Tjetër'
+      ) : '-',
       report.status === 'active' ? 'AKTIV' : report.status === 'completed' ? 'PËRFUNDUAR' : 'ANULUAR',
       new Date(report.createdAt).toLocaleDateString('sq-AL')
     ]);
@@ -284,7 +293,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
             </div>
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <p className="text-sm text-gray-600">Të Ardhurat Totale</p>
-              <p className="text-2xl font-bold text-blue-600">€{totals.totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-blue-600">
+                €{Number(totals.totalRevenue) % 1 === 0 ? Number(totals.totalRevenue).toLocaleString() : Number(totals.totalRevenue).toFixed(2)}
+              </p>
             </div>
           </div>
 
@@ -322,6 +333,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Çmimi Ditor</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Zbritje</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Shuma Totale</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">E paguar</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Metoda e Pagesës</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Statusi</th>
                   </tr>
                 </thead>
@@ -355,7 +368,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
                           report.returnTime
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">€{report.dailyRate}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        €{Number(report.dailyRate) % 1 === 0 ? Number(report.dailyRate).toFixed(0) : Number(report.dailyRate).toFixed(2)}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {report.discount && report.discount > 0 ? (
                           <span className="text-orange-600 font-medium">{report.discount}%</span>
@@ -363,7 +378,25 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900">€{Number(report.totalAmount).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                        €{Number(report.totalAmount) % 1 === 0 ? Number(report.totalAmount).toFixed(0) : Number(report.totalAmount).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        <span className={`font-medium ${report.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                          {report.isPaid ? 'E paguar' : 'E papaguar'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {report.paymentMethod ? (
+                          report.paymentMethod === 'cash' ? 'Cash' : 
+                          report.paymentMethod === 'card' ? 'Kartë' : 
+                          report.paymentMethod === 'bank_transfer' ? 'Transfer Bankar' : 
+                          report.paymentMethod === 'cheque' ? 'Çek' : 
+                          'Tjetër'
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(report.status)}`}>
                           {getStatusText(report.status)}

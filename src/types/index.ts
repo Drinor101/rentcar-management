@@ -22,6 +22,9 @@ export interface Booking {
   returnTime?: string; // Time in HH:mm format (e.g., "14:00")
   totalAmount: number;
   discount?: number; // Discount percentage (0-100)
+  isPaid?: boolean; // Whether the booking is paid
+  paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other'; // Payment method
+  dailyRateAtBooking?: number; // Daily rate of the car at the time of booking creation
   status: 'active' | 'completed' | 'cancelled';
   createdBy?: string;
   createdByName?: string;
@@ -43,6 +46,8 @@ export interface Report {
   dailyRate: number;
   totalAmount: number;
   discount?: number; // Discount percentage (0-100)
+  isPaid?: boolean; // Whether the booking is paid
+  paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other'; // Payment method
   status: 'active' | 'completed' | 'cancelled';
   createdAt: string;
   createdBy?: string;

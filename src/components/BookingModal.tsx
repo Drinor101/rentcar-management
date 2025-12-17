@@ -21,8 +21,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
     pickUpTime: string;
     endDate: string;
     returnTime: string;
-    totalAmount: number;
+    totalAmount: number | string; // Allow string for empty input
     discount: number | string; // Allow string for empty input
+    isPaid: boolean;
+    paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | '';
     status: Booking['status'];
   }>({
     carId: '',
@@ -33,10 +35,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
     pickUpTime: '',
     endDate: '',
     returnTime: '',
-    totalAmount: 0,
+    totalAmount: '',
     discount: '',
+    isPaid: false,
+    paymentMethod: '',
     status: 'active'
   });
+
+  // Track if user has manually edited totalAmount
+  const [isTotalAmountManuallyEdited, setIsTotalAmountManuallyEdited] = useState(false);
 
   // Check for date/time conflicts with active bookings
   const checkDateConflict = (
@@ -87,11 +94,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
     return bookings.filter(b => b.carId === carId && b.status === 'active');
   };
 
-  // When editing, show the current car
-  // When creating, show all cars (not just available ones)
-  const availableCars = booking 
-    ? cars.filter(car => car.id === booking.carId) // Show only the current car when editing
-    : cars; // Show all cars when creating
+  // Show all cars (both when creating and editing)
+  const availableCars = cars;
 
   // Check for conflicts with current form data
   const conflictingBookings = useMemo(() => {
@@ -123,15 +127,21 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
         pickUpTime: booking.pickUpTime || '',
         endDate: booking.endDate,
         returnTime: booking.returnTime || '',
-        totalAmount: booking.totalAmount,
+        totalAmount: booking.totalAmount || '',
         discount: booking.discount !== undefined && booking.discount !== null ? booking.discount : '',
+        isPaid: booking.isPaid !== undefined ? booking.isPaid : false,
+        paymentMethod: booking.paymentMethod || '',
         status: booking.status
       });
+      // Reset manual edit flag when loading existing booking
+      setIsTotalAmountManuallyEdited(false);
     }
   }, [booking]);
 
+  // Calculate total amount automatically when relevant fields change
+  // Only auto-update if user hasn't manually edited the total
   useEffect(() => {
-    if (formData.carId && formData.startDate && formData.endDate) {
+    if (formData.carId && formData.startDate && formData.endDate && !isTotalAmountManuallyEdited) {
       const car = cars.find(c => c.id === formData.carId);
       if (car) {
         // Calculate rental days using Excel formula logic
@@ -142,17 +152,26 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
           formData.returnTime || undefined
         );
         
-        const baseTotal = rentalDays * car.dailyRate;
+        // Use the daily rate at booking time if editing existing booking, otherwise use current car rate
+        const dailyRate = booking?.dailyRateAtBooking || car.dailyRate;
+        const baseTotal = rentalDays * dailyRate;
         
         // Apply discount if provided (handle empty string as 0)
-        const discount = formData.discount === '' ? 0 : (formData.discount || 0);
+        const discount = formData.discount === '' ? 0 : (typeof formData.discount === 'string' ? parseFloat(formData.discount) || 0 : formData.discount);
         const discountAmount = (baseTotal * discount) / 100;
         const finalTotal = baseTotal - discountAmount;
         
         setFormData(prev => ({ ...prev, totalAmount: finalTotal }));
       }
     }
-  }, [formData.carId, formData.startDate, formData.pickUpTime, formData.endDate, formData.returnTime, formData.discount, cars]);
+  }, [formData.carId, formData.startDate, formData.pickUpTime, formData.endDate, formData.returnTime, formData.discount, cars, isTotalAmountManuallyEdited, booking]);
+
+  // Reset manual edit flag when relevant fields change (so auto-calculation resumes)
+  useEffect(() => {
+    // Reset the flag when dates, times, car, or discount change
+    // This allows auto-calculation to resume after field changes
+    setIsTotalAmountManuallyEdited(false);
+  }, [formData.carId, formData.startDate, formData.pickUpTime, formData.endDate, formData.returnTime, formData.discount]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,10 +182,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
       return;
     }
     
-    // Convert empty discount string to 0 before saving
+    // Convert empty discount and totalAmount strings to 0 before saving
     const dataToSave = {
       ...formData,
-      discount: formData.discount === '' ? 0 : (formData.discount || 0)
+      discount: formData.discount === '' ? 0 : (typeof formData.discount === 'string' ? parseFloat(formData.discount) || 0 : formData.discount),
+      totalAmount: formData.totalAmount === '' ? 0 : (typeof formData.totalAmount === 'string' ? parseFloat(formData.totalAmount) || 0 : formData.totalAmount),
+      paymentMethod: formData.paymentMethod === '' ? undefined : formData.paymentMethod as 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other',
     };
     
     onSave(dataToSave);
@@ -177,6 +198,21 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
     
     if (name === 'discount') {
       // Allow empty string for discount, convert to 0 only when needed
+      const numValue = value === '' ? '' : parseFloat(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: numValue === '' ? '' : (isNaN(numValue) ? 0 : numValue)
+      }));
+    } else if (name === 'isPaid') {
+      // Handle checkbox for isPaid
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else if (name === 'totalAmount') {
+      // Handle totalAmount similar to discount - allow empty string
+      setIsTotalAmountManuallyEdited(true); // Mark as manually edited
       const numValue = value === '' ? '' : parseFloat(value);
       setFormData(prev => ({
         ...prev,
@@ -261,7 +297,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail size={16} className="inline mr-1" />
-                Email
+                Email <span className="text-gray-400 text-xs">(Opsionale)</span>
               </label>
               <input
                 type="email"
@@ -270,23 +306,19 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
                 onChange={handleInputChange}
                 placeholder="klient@email.com"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
               />
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Car size={16} className="inline mr-1" />
-                {booking ? 'Makina (Nuk mund të ndryshohet)' : 'Zgjedh Makinën'}
+                Zgjedh Makinën
               </label>
               <select
                 name="carId"
                 value={formData.carId}
                 onChange={handleInputChange}
-                disabled={!!booking}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  booking ? 'bg-gray-100 cursor-not-allowed' : ''
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
                 <option value="">Zgjedh një makinë...</option>
@@ -302,10 +334,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
                   );
                 })}
               </select>
-              {booking && (
-                <p className="text-xs text-gray-500 mt-1">Makina nuk mund të ndryshohet pasi rezervimi është krijuar</p>
-              )}
-              {!booking && availableCars.length === 0 && (
+              {availableCars.length === 0 && (
                 <p className="text-sm text-red-600 mt-1">Nuk ka makina të disponueshme për rezervim</p>
               )}
             </div>
@@ -411,19 +440,62 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
               <p className="text-xs text-gray-500 mt-1">Opsionale - Zbritje në përqindje (0-100%)</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Shuma Totale (EUR)
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="isPaid"
+                id="isPaid"
+                checked={formData.isPaid}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="isPaid" className="ml-2 text-sm font-medium text-gray-700">
+                E paguar
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="totalAmount"
-                  value={formData.totalAmount.toFixed(2)}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                />
-                <span className="absolute right-3 top-2 text-gray-500">€</span>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {formData.isPaid && (
+                  <div>
+                    <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700 mb-2">
+                      Metoda e Pagesës
+                    </label>
+                    <select
+                      name="paymentMethod"
+                      id="paymentMethod"
+                      value={formData.paymentMethod}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Zgjedh metodën</option>
+                      <option value="cash">Cash</option>
+                      <option value="card">Kartë (Card)</option>
+                      <option value="bank_transfer">Transfer Bankar (Bank Transfer)</option>
+                      <option value="cheque">Çek (Cheque)</option>
+                      <option value="other">Tjetër (Other)</option>
+                    </select>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Shuma Totale (EUR)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      name="totalAmount"
+                      value={formData.totalAmount === '' ? '' : formData.totalAmount}
+                      onChange={handleInputChange}
+                      step="0.01"
+                      min="0"
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <span className="absolute right-3 top-2 text-gray-500">€</span>
+                  </div>
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 {(() => {

@@ -209,6 +209,20 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
                         <span className="text-orange-600 font-medium">Zbritje: {booking.discount}%</span>
                       </div>
                     )}
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${booking.isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                        {booking.isPaid ? '✓ E paguar' : '✗ E papaguar'}
+                      </span>
+                      {booking.isPaid && booking.paymentMethod && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          ({booking.paymentMethod === 'cash' ? 'Cash' : 
+                            booking.paymentMethod === 'card' ? 'Kartë' : 
+                            booking.paymentMethod === 'bank_transfer' ? 'Transfer Bankar' : 
+                            booking.paymentMethod === 'cheque' ? 'Çek' : 
+                            'Tjetër'})
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -229,7 +243,7 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
                     <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-600">Çmimi Ditor:</span>
-                        <span className="font-semibold text-gray-800">€{car?.dailyRate || 0}</span>
+                        <span className="font-semibold text-gray-800">€{booking.dailyRateAtBooking || car?.dailyRate || 0}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-600">Ditët:</span>

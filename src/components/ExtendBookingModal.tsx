@@ -29,7 +29,9 @@ const ExtendBookingModal: React.FC<ExtendBookingModalProps> = ({
       if (endDate > startDate) {
         const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
         const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
-        const total = days * car.dailyRate;
+        // Use the daily rate at booking time, not the current car rate
+        const dailyRate = booking.dailyRateAtBooking || (car ? car.dailyRate : 0);
+        const total = days * dailyRate;
         
         setCalculatedDays(days);
         setNewTotalAmount(total);
