@@ -154,12 +154,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
         
         // Use the daily rate at booking time if editing existing booking, otherwise use current car rate
         const dailyRate = booking?.dailyRateAtBooking || car.dailyRate;
-        const baseTotal = rentalDays * dailyRate;
         
         // Apply discount if provided (handle empty string as 0)
+        // Discount is a fixed amount in EUR that is deducted from the daily rate
         const discount = formData.discount === '' ? 0 : (typeof formData.discount === 'string' ? parseFloat(formData.discount) || 0 : formData.discount);
-        const discountAmount = (baseTotal * discount) / 100;
-        const finalTotal = baseTotal - discountAmount;
+        const dailyRateAfterDiscount = Math.max(0, dailyRate - discount); // Ensure daily rate doesn't go negative
+        const finalTotal = rentalDays * dailyRateAfterDiscount;
         
         setFormData(prev => ({ ...prev, totalAmount: finalTotal }));
       }
@@ -421,7 +421,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Zbritje (%)
+                Zbritje (EUR)
               </label>
               <div className="relative">
                 <input
@@ -430,14 +430,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
                   value={formData.discount === '' ? '' : formData.discount}
                   onChange={handleInputChange}
                   min="0"
-                  max="100"
                   step="0.01"
                   placeholder="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <span className="absolute right-3 top-2 text-gray-500">%</span>
+                <span className="absolute right-3 top-2 text-gray-500">€</span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Opsionale - Zbritje në përqindje (0-100%)</p>
+              <p className="text-xs text-gray-500 mt-1">Opsionale - Shumë fikse në EUR që zbritet nga çmimi ditor</p>
             </div>
 
             <div className="flex items-center">
@@ -516,7 +515,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
                   }
                   
                   if (formData.discount !== '' && formData.discount > 0) {
-                    message += ` | Zbritje: ${formData.discount}%`;
+                    message += ` | Zbritje: €${formData.discount}`;
                   }
                   
                   return message;

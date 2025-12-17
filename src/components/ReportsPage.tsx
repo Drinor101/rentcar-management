@@ -100,7 +100,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
         report.returnTime
       ).toString(),
       `€${report.dailyRate}`,
-      report.discount && report.discount > 0 ? `${report.discount}%` : '-',
+      report.discount && report.discount > 0 ? `€${Number(report.discount) % 1 === 0 ? Number(report.discount).toFixed(0) : Number(report.discount).toFixed(2)}` : '-',
       `€${Number(report.totalAmount) % 1 === 0 ? Number(report.totalAmount).toFixed(0) : Number(report.totalAmount).toFixed(2)}`,
       report.isPaid ? 'Po' : 'Jo',
       report.paymentMethod ? (
@@ -373,7 +373,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {report.discount && report.discount > 0 ? (
-                          <span className="text-orange-600 font-medium">{report.discount}%</span>
+                          <span className="text-orange-600 font-medium">€{Number(report.discount) % 1 === 0 ? Number(report.discount).toFixed(0) : Number(report.discount).toFixed(2)}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}

@@ -206,7 +206,7 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
                     </div>
                     {booking.discount !== undefined && booking.discount !== null && Number(booking.discount) > 0 && (
                       <div className="flex items-center gap-2">
-                        <span className="text-orange-600 font-medium">Zbritje: {booking.discount}%</span>
+                        <span className="text-orange-600 font-medium">Zbritje: €{booking.discount}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
