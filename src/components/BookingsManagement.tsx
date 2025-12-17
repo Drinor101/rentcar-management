@@ -3,6 +3,7 @@ import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2, UserCircle
 import { Booking, Car as CarType } from '../types';
 import BookingModal from './BookingModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import { calculateRentalDays } from '../utils/dateCalculations';
 
 interface BookingsManagementProps {
   bookings: Booking[]; // Filtered bookings for list view
@@ -233,9 +234,12 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-600">Ditët:</span>
                         <span className="font-semibold text-gray-800">
-                          {Math.ceil(
-                            (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)
-                          ) + 1} ditë
+                          {calculateRentalDays(
+                            booking.startDate,
+                            booking.pickUpTime,
+                            booking.endDate,
+                            booking.returnTime
+                          )} ditë
                         </span>
                       </div>
                     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { FileText, Download, Calendar, Filter, X } from 'lucide-react';
 import { Report } from '../types';
+import { calculateRentalDays } from '../utils/dateCalculations';
 
 interface ReportsPageProps {
   reports: Report[];
@@ -70,7 +71,15 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
   const totals = useMemo(() => {
     const totalRevenue = filteredReports.reduce((sum, report) => sum + report.totalAmount, 0);
     const totalBookings = filteredReports.length;
-    const totalDays = filteredReports.reduce((sum, report) => sum + report.days, 0);
+    const totalDays = filteredReports.reduce((sum, report) => {
+      const calculatedDays = calculateRentalDays(
+        report.startDate,
+        report.pickUpTime,
+        report.endDate,
+        report.returnTime
+      );
+      return sum + calculatedDays;
+    }, 0);
     return { totalRevenue, totalBookings, totalDays };
   }, [filteredReports]);
 
@@ -84,7 +93,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
       report.clientPhone,
       new Date(report.startDate).toLocaleDateString('sq-AL'),
       new Date(report.endDate).toLocaleDateString('sq-AL'),
-      report.days.toString(),
+      calculateRentalDays(
+        report.startDate,
+        report.pickUpTime,
+        report.endDate,
+        report.returnTime
+      ).toString(),
       `€${report.dailyRate}`,
       `€${report.totalAmount}`,
       report.status === 'active' ? 'AKTIV' : report.status === 'completed' ? 'PËRFUNDUAR' : 'ANULUAR',
@@ -333,7 +347,14 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, isOpen, onClose }) =
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{report.days}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {calculateRentalDays(
+                          report.startDate,
+                          report.pickUpTime,
+                          report.endDate,
+                          report.returnTime
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600">€{report.dailyRate}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {report.discount && report.discount > 0 ? (
