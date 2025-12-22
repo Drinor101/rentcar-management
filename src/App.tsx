@@ -5,6 +5,8 @@ import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import CarsManagement from './components/CarsManagement';
 import BookingsManagement from './components/BookingsManagement';
+import CalendarView from './components/CalendarView';
+import NotesManagement from './components/NotesManagement';
 import ReportsPage from './components/ReportsPage';
 import UsersManagement from './components/UsersManagement';
 import { ToastContainer } from './components/Toast';
@@ -12,7 +14,8 @@ import { useToast } from './hooks/useToast';
 import { carsService } from './services/carsService';
 import { bookingsService } from './services/bookingsService';
 import { reportsService } from './services/reportsService';
-import { Car, Booking, Report } from './types';
+import { notesService } from './services/notesService';
+import { Car, Booking, Report, Note } from './types';
 
 function AppContent() {
   const { user, profile, loading: authLoading, isAdmin } = useAuth();
@@ -21,6 +24,7 @@ function AppContent() {
   const [bookings, setBookings] = useState<Booking[]>([]); // Filtered bookings for list view
   const [allBookings, setAllBookings] = useState<Booking[]>([]); // All bookings for conflict checking
   const [reports, setReports] = useState<Report[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +81,17 @@ function AppContent() {
         reportsData = await reportsService.getByUserId(user.id);
       }
       setReports(reportsData);
+      
+      // Filter notes based on role
+      let notesData: Note[];
+      if (isAdmin) {
+        // Admin sees all notes
+        notesData = await notesService.getAll();
+      } else {
+        // Puntor sees only their own notes
+        notesData = await notesService.getByUserId(user.id);
+      }
+      setNotes(notesData);
     } catch (err) {
       console.error('Error loading data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -373,6 +388,75 @@ function AppContent() {
     }
   };
 
+  // Notes management functions
+  const handleAddNote = async (noteData: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!user) return;
+    
+    try {
+      const newNote = await notesService.create({
+        ...noteData,
+        userId: user.id,
+      });
+      setNotes(prev => [newNote, ...prev]);
+      toast.success('Shenimi u shtua me sukses!');
+    } catch (err) {
+      console.error('Error adding note:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add note';
+      setError(errorMessage);
+      toast.error(`Gabim: ${errorMessage}`);
+    }
+  };
+
+  const handleUpdateNote = async (id: string, noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>) => {
+    // Optimistic update
+    setNotes(prev => prev.map(note => note.id === id ? { ...note, ...noteData } as Note : note));
+    
+    try {
+      const updatedNote = await notesService.update(id, noteData);
+      setNotes(prev => prev.map(note => note.id === id ? updatedNote : note));
+      toast.success('Shenimi u përditësua me sukses!');
+    } catch (err) {
+      console.error('Error updating note:', err);
+      // Rollback on error
+      if (user) {
+        let updatedNotes: Note[];
+        if (isAdmin) {
+          updatedNotes = await notesService.getAll();
+        } else {
+          updatedNotes = await notesService.getByUserId(user.id);
+        }
+        setNotes(updatedNotes);
+      }
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update note';
+      setError(errorMessage);
+      toast.error(`Gabim: ${errorMessage}`);
+    }
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    const noteToDelete = notes.find(n => n.id === id);
+    
+    // Optimistic update
+    setNotes(prev => prev.filter(n => n.id !== id));
+    
+    try {
+      await notesService.delete(id);
+      toast.success('Shenimi u fshi me sukses!');
+    } catch (err) {
+      // Rollback on error
+      if (noteToDelete) {
+        setNotes(prev => [...prev, noteToDelete].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ));
+      }
+      
+      console.error('Error deleting note:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete note';
+      setError(errorMessage);
+      toast.error(`Gabim: ${errorMessage}`);
+    }
+  };
+
   // Show login if not authenticated (after all hooks)
   if (authLoading) {
     return (
@@ -417,6 +501,27 @@ function AppContent() {
             onAddBooking={handleAddBooking}
             onUpdateBooking={handleUpdateBooking}
             onDeleteBooking={handleDeleteBooking}
+          />
+        );
+      case 'calendar':
+        return (
+          <CalendarView 
+            bookings={allBookings}
+            cars={cars}
+            onBookingClick={() => {
+              // Open booking modal for editing
+              setCurrentPage('bookings');
+              // You could also open a modal here if needed
+            }}
+          />
+        );
+      case 'notes':
+        return (
+          <NotesManagement
+            notes={notes}
+            onAddNote={handleAddNote}
+            onUpdateNote={handleUpdateNote}
+            onDeleteNote={handleDeleteNote}
           />
         );
       case 'users':

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Car, Settings, Calendar, FileText, Menu, X, Users, LogOut } from 'lucide-react';
+import { Car, Settings, Calendar, Grid3x3, FileText, Menu, X, Users, LogOut, StickyNote } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -23,6 +23,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
     { id: 'dashboard', label: 'Dashboard', icon: Settings },
     { id: 'cars', label: 'Makina', icon: Car },
     { id: 'bookings', label: 'Rezervime', icon: Calendar },
+    { id: 'calendar', label: 'Kalendari', icon: Grid3x3 },
+    { id: 'notes', label: 'Shenime', icon: StickyNote },
     { id: 'reports', label: 'Raporte', icon: FileText, action: onOpenReports },
     ...(isAdmin ? [{ id: 'users', label: 'Përdoruesit', icon: Users }] : [])
   ];
@@ -122,6 +124,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onPageChange, on
               {currentPage === 'dashboard' ? 'Dashboard' :
                currentPage === 'cars' ? 'Menaxhimi i Makinave' :
                currentPage === 'bookings' ? 'Rezervimet' :
+               currentPage === 'calendar' ? 'Kalendari' :
+               currentPage === 'notes' ? 'Shenimet' :
                currentPage === 'users' ? 'Përdoruesit' : currentPage}
             </h2>
             
