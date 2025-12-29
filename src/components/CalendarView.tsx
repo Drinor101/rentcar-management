@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Car, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Car, Clock, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Booking, Car as CarType } from '../types';
-import { calculateRentalDays } from '../utils/dateCalculations';
 
 interface CalendarViewProps {
   bookings: Booking[];
@@ -37,16 +36,41 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
   // We want: 0=Monday, 1=Tuesday, 2=Wednesday, 3=Thursday, 4=Friday, 5=Saturday, 6=Sunday
   const adjustedStartingDay = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1;
 
-  // Get bookings for a specific date
+  // Get bookings for a specific date (taking into account pickUpTime and returnTime)
   const getBookingsForDate = (date: Date): Booking[] => {
-    const dateStr = date.toISOString().split('T')[0];
+    // Get date string in YYYY-MM-DD format (local timezone)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
     return bookings.filter(booking => {
-      const startDate = new Date(booking.startDate);
-      const endDate = new Date(booking.endDate);
-      const checkDate = new Date(dateStr);
+      // Normalize time format (remove seconds if present)
+      const normalizeTime = (time: string | undefined): string | undefined => {
+        if (!time) return undefined;
+        const parts = time.split(':');
+        if (parts.length >= 2) {
+          return `${parts[0]}:${parts[1]}`;
+        }
+        return time;
+      };
       
-      // Check if date is between start and end (inclusive)
-      return checkDate >= startDate && checkDate <= endDate;
+      const normPickUpTime = normalizeTime(booking.pickUpTime);
+      const normReturnTime = normalizeTime(booking.returnTime);
+      
+      // Parse booking dates (they are already in YYYY-MM-DD format)
+      const bookingStartDate = booking.startDate;
+      const bookingEndDate = booking.endDate;
+      
+      // Simple date comparison first (without time)
+      // If the check date is before start or after end, exclude it
+      if (dateStr < bookingStartDate || dateStr > bookingEndDate) {
+        return false;
+      }
+      
+      // If date matches start or end date exactly, or is in between, include it
+      // The date is definitely included if it's between start and end (inclusive)
+      return true;
     });
   };
 
@@ -67,6 +91,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
 
   const goToNextMonth = () => {
     setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
+  };
+
+  const goToPreviousYear = () => {
+    setCurrentDate(new Date(currentYear - 1, currentMonth, 1));
+  };
+
+  const goToNextYear = () => {
+    setCurrentDate(new Date(currentYear + 1, currentMonth, 1));
   };
 
   const goToToday = () => {
@@ -108,7 +140,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
         {/* Month Navigation Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {/* Previous Year */}
+              <button
+                onClick={goToPreviousYear}
+                className="p-2 hover:bg-blue-800 rounded-lg transition-colors text-white"
+                title="Viti i kaluar"
+              >
+                <ChevronsLeft size={20} />
+              </button>
+              {/* Previous Month */}
               <button
                 onClick={goToPreviousMonth}
                 className="p-2 hover:bg-blue-800 rounded-lg transition-colors text-white"
@@ -116,15 +157,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
               >
                 <ChevronLeft size={20} />
               </button>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-white min-w-[200px] text-center">
                 {monthNames[currentMonth]} {currentYear}
               </h2>
+              {/* Next Month */}
               <button
                 onClick={goToNextMonth}
                 className="p-2 hover:bg-blue-800 rounded-lg transition-colors text-white"
                 title="Muaji i ardhshëm"
               >
                 <ChevronRight size={20} />
+              </button>
+              {/* Next Year */}
+              <button
+                onClick={goToNextYear}
+                className="p-2 hover:bg-blue-800 rounded-lg transition-colors text-white"
+                title="Viti i ardhshëm"
+              >
+                <ChevronsRight size={20} />
               </button>
             </div>
             <button
@@ -159,7 +209,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
             return (
               <div
                 key={index}
-                className={`min-h-[140px] border-2 rounded-lg p-2 transition-all ${
+                className={`min-h-[200px] border-2 rounded-lg p-2 transition-all ${
                   isCurrentMonthDay 
                     ? isTodayDate
                       ? 'bg-blue-50 border-blue-400 shadow-md'
@@ -181,28 +231,50 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
                     </div>
 
                     {/* Bookings for this day */}
-                    <div className="space-y-1.5 max-h-[100px] overflow-y-auto">
+                    <div className="space-y-1.5 flex flex-col">
                       {dayBookings.map((booking) => {
                         const car = cars.find(c => c.id === booking.carId);
                         const statusColor = getStatusColor(booking.status);
+                        
+                        // Format times
+                        const pickUpTimeFormatted = booking.pickUpTime ? booking.pickUpTime.split(':').slice(0, 2).join(':') : '';
+                        const returnTimeFormatted = booking.returnTime ? booking.returnTime.split(':').slice(0, 2).join(':') : '';
+                        
+                        // Check if this is the start date, end date, or middle date
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const currentDateStr = `${year}-${month}-${day}`;
+                        const isStartDate = currentDateStr === booking.startDate;
+                        const isEndDate = currentDateStr === booking.endDate;
                         
                         return (
                           <div
                             key={booking.id}
                             onClick={() => onBookingClick?.(booking)}
-                            className={`${statusColor} text-white text-xs p-1.5 rounded-md cursor-pointer hover:opacity-90 hover:shadow-md transition-all`}
-                            title={`${booking.clientName} - ${car?.make} ${car?.model}${booking.pickUpTime ? ` (${booking.pickUpTime.split(':').slice(0, 2).join(':')})` : ''}`}
+                            className={`${statusColor} text-white text-[10px] p-1.5 rounded-md cursor-pointer hover:opacity-90 hover:shadow-md transition-all flex flex-col gap-0.5`}
+                            title={`${booking.clientName} - ${car?.make} ${car?.model} | ${new Date(booking.startDate).toLocaleDateString('sq-AL')} ${pickUpTimeFormatted ? `(${pickUpTimeFormatted})` : ''} - ${new Date(booking.endDate).toLocaleDateString('sq-AL')} ${returnTimeFormatted ? `(${returnTimeFormatted})` : ''}`}
                           >
-                            <div className="flex items-center gap-1.5">
-                              <Car size={11} className="flex-shrink-0" />
+                            <div className="flex items-center gap-1 truncate">
+                              <Car size={10} className="flex-shrink-0" />
                               <span className="truncate font-semibold">
                                 {booking.clientName}
                               </span>
                             </div>
-                            {booking.pickUpTime && (
-                              <div className="flex items-center gap-1 text-[10px] opacity-95 mt-0.5">
-                                <Clock size={9} />
-                                <span>{booking.pickUpTime.split(':').slice(0, 2).join(':')}</span>
+                            {car && (
+                              <div className="text-[9px] opacity-95 truncate leading-tight">
+                                {car.make} {car.model}
+                              </div>
+                            )}
+                            {(isStartDate || isEndDate) && (
+                              <div className="flex items-center gap-1 text-[9px] opacity-90 leading-tight">
+                                <Clock size={8} />
+                                {isStartDate && pickUpTimeFormatted && (
+                                  <span>Nga: {pickUpTimeFormatted}</span>
+                                )}
+                                {isEndDate && returnTimeFormatted && (
+                                  <span>Deri: {returnTimeFormatted}</span>
+                                )}
                               </div>
                             )}
                           </div>
