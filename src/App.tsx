@@ -487,6 +487,7 @@ function AppContent() {
         return (
           <CarsManagement
             cars={cars}
+            bookings={allBookings}
             onAddCar={handleAddCar}
             onUpdateCar={handleUpdateCar}
             onDeleteCar={handleDeleteCar}

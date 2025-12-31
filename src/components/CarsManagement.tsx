@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
-import { Car } from '../types';
+import { Car, Booking } from '../types';
 import CarModal from './CarModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import { isBookingCurrentlyActive } from '../utils/dateCalculations';
 
 interface CarsManagementProps {
   cars: Car[];
+  bookings: Booking[];
   onAddCar: (car: Omit<Car, 'id'>) => void;
   onUpdateCar: (id: string, car: Omit<Car, 'id'>) => void;
   onDeleteCar: (id: string) => void;
@@ -13,6 +15,7 @@ interface CarsManagementProps {
 
 const CarsManagement: React.FC<CarsManagementProps> = ({
   cars,
+  bookings,
   onAddCar,
   onUpdateCar,
   onDeleteCar
@@ -27,7 +30,34 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const filteredCars = cars.filter(car => {
+  // Calculate actual car status based on active bookings
+  const carsWithActualStatus = useMemo(() => {
+    return cars.map(car => {
+      // Check if car has an active booking that overlaps with today
+      const activeBookingForCar = bookings.find(booking => 
+        booking.carId === car.id && isBookingCurrentlyActive(booking)
+      );
+      
+      // If car has an active booking today, it's rented
+      // Otherwise, use the stored status (but if stored status is 'rented' and no active booking, make it 'available')
+      let actualStatus: Car['status'] = car.status;
+      
+      if (activeBookingForCar) {
+        actualStatus = 'rented';
+      } else if (car.status === 'rented') {
+        // If stored status is 'rented' but no active booking, make it available
+        actualStatus = 'available';
+      }
+      // If status is 'maintenance', keep it as is
+      
+      return {
+        ...car,
+        status: actualStatus
+      };
+    });
+  }, [cars, bookings]);
+
+  const filteredCars = carsWithActualStatus.filter(car => {
     const matchesSearch = car.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          car.licensePlate.toLowerCase().includes(searchTerm.toLowerCase());
@@ -42,7 +72,9 @@ const CarsManagement: React.FC<CarsManagementProps> = ({
   };
 
   const handleEditCar = (car: Car) => {
-    setEditingCar(car);
+    // Find the original car from the database (not the one with calculated status)
+    const originalCar = cars.find(c => c.id === car.id);
+    setEditingCar(originalCar || car);
     setIsModalOpen(true);
   };
 

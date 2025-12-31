@@ -110,3 +110,51 @@ export function checkDateTimeOverlap(
   
   return hasOverlap;
 }
+
+/**
+ * Check if a booking is currently active (overlaps with today)
+ * A booking is active if:
+ * - It has status 'active'
+ * - Today falls within the booking date range (startDate <= today <= endDate)
+ * - If today is the end date, check if return time hasn't passed yet
+ */
+export function isBookingCurrentlyActive(
+  booking: { startDate: string; endDate: string; returnTime?: string; status: string }
+): boolean {
+  // Only check active bookings
+  if (booking.status !== 'active') return false;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const startDate = new Date(booking.startDate);
+  startDate.setHours(0, 0, 0, 0);
+  
+  const endDate = new Date(booking.endDate);
+  endDate.setHours(0, 0, 0, 0);
+  
+  // Check if today is before the booking starts
+  if (today.getTime() < startDate.getTime()) {
+    return false;
+  }
+  
+  // Check if today is after the booking ends
+  if (today.getTime() > endDate.getTime()) {
+    return false;
+  }
+  
+  // If today is the end date, check if return time has passed
+  if (today.getTime() === endDate.getTime() && booking.returnTime) {
+    const now = new Date();
+    const [hours, minutes] = booking.returnTime.split(':').map(Number);
+    const returnDateTime = new Date(endDate);
+    returnDateTime.setHours(hours, minutes || 0, 0, 0);
+    
+    // If return time has passed, booking is no longer active
+    if (now.getTime() >= returnDateTime.getTime()) {
+      return false;
+    }
+  }
+  
+  return true;
+}

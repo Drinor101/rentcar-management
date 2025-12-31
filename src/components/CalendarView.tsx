@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Car, Clock, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Booking, Car as CarType } from '../types';
+import { isBookingCurrentlyActive } from '../utils/dateCalculations';
 
 interface CalendarViewProps {
   bookings: Booking[];
@@ -131,6 +132,61 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
   const isToday = (date: Date | null) => {
     if (!date) return false;
     return date.toDateString() === today.toDateString();
+  };
+
+  // Get currently rented cars for legend
+  const currentlyRentedCars = useMemo(() => {
+    // Get all active bookings that are currently active (overlap with today)
+    const activeBookings = bookings.filter(booking => 
+      booking.status === 'active' && isBookingCurrentlyActive(booking)
+    );
+
+    if (activeBookings.length === 0) {
+      return null;
+    }
+
+    // Group by car and get the latest end date for each car
+    const carsWithBookings = activeBookings.map(booking => {
+      const car = cars.find(c => c.id === booking.carId);
+      return {
+        booking,
+        car,
+        carName: car ? `${car.make} ${car.model}` : 'Makinë e panjohur',
+        endDate: booking.endDate,
+        returnTime: booking.returnTime
+      };
+    }).filter(item => item.car); // Remove bookings without cars
+
+    // Sort by end date
+    carsWithBookings.sort((a, b) => {
+      const dateA = new Date(a.endDate).getTime();
+      const dateB = new Date(b.endDate).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      // If same date, sort by return time
+      if (a.returnTime && b.returnTime) {
+        return a.returnTime.localeCompare(b.returnTime);
+      }
+      return 0;
+    });
+
+    return carsWithBookings;
+  }, [bookings, cars]);
+
+  // Format date in Albanian
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('sq-AL', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  // Format time (remove seconds if present)
+  const formatTime = (time: string | undefined) => {
+    if (!time) return '';
+    const parts = time.split(':');
+    return `${parts[0]}:${parts[1] || '00'}`;
   };
 
   return (
@@ -296,7 +352,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
           <CalendarIcon size={18} className="text-blue-600" />
           Legjenda
         </h3>
-        <div className="flex flex-wrap gap-6">
+        
+        {/* Status Colors */}
+        <div className="flex flex-wrap gap-6 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 bg-green-500 rounded-md shadow-sm"></div>
             <span className="text-sm font-medium text-gray-700">AKTIV</span>
@@ -309,6 +367,42 @@ const CalendarView: React.FC<CalendarViewProps> = ({ bookings, cars, onBookingCl
             <div className="w-5 h-5 bg-red-500 rounded-md shadow-sm"></div>
             <span className="text-sm font-medium text-gray-700">ANULUAR</span>
           </div>
+        </div>
+
+        {/* Currently Rented Cars */}
+        <div className="border-t border-gray-200 pt-4 mt-4">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <Car size={16} className="text-blue-600" />
+            Makina të Zëna Aktualisht
+          </h4>
+          {currentlyRentedCars === null || currentlyRentedCars.length === 0 ? (
+            <p className="text-sm text-gray-500">Nuk ka makina të zëna aktualisht.</p>
+          ) : (
+            <div className="space-y-2">
+              {currentlyRentedCars.map((item, index) => (
+                <div 
+                  key={`${item.booking.id}-${index}`}
+                  className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+                >
+                  <div className="flex-shrink-0 mt-0.5">
+                    <Car size={16} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-gray-800 mb-1">
+                      {item.carName}
+                    </div>
+                    <div className="text-xs text-gray-600 flex items-center gap-2">
+                      <Clock size={12} className="text-gray-500" />
+                      <span>
+                        E zënë deri më {formatDate(item.endDate)}
+                        {item.returnTime && ` në orën ${formatTime(item.returnTime)}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2, UserCircle, Mail } from 'lucide-react';
+import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2, UserCircle, Mail, Search } from 'lucide-react';
 import { Booking, Car as CarType } from '../types';
 import BookingModal from './BookingModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
@@ -23,6 +23,8 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
   onDeleteBooking
 }) => {
   const [statusFilter, setStatusFilter] = useState('all');
+  const [carFilter, setCarFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('endDate');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -33,7 +35,31 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredBookings = bookings
-    .filter(booking => statusFilter === 'all' || booking.status === statusFilter)
+    .filter(booking => {
+      // Status filter
+      if (statusFilter !== 'all' && booking.status !== statusFilter) {
+        return false;
+      }
+      
+      // Car filter
+      if (carFilter !== 'all' && booking.carId !== carFilter) {
+        return false;
+      }
+      
+      // Search filter (client name, phone, email)
+      if (searchTerm.trim() !== '') {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesName = booking.clientName.toLowerCase().includes(searchLower);
+        const matchesPhone = booking.clientPhone.toLowerCase().includes(searchLower);
+        const matchesEmail = booking.clientEmail?.toLowerCase().includes(searchLower) || false;
+        
+        if (!matchesName && !matchesPhone && !matchesEmail) {
+          return false;
+        }
+      }
+      
+      return true;
+    })
     .sort((a, b) => {
       if (sortBy === 'endDate') return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
       if (sortBy === 'startDate') return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
@@ -88,43 +114,75 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="flex gap-3">
-          <select
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">Të Gjitha Rezervimet</option>
-            <option value="active">AKTIVE</option>
-            <option value="completed">TË PËRFUNDUARA</option>
-            <option value="cancelled">TË ANULUARA</option>
-          </select>
+      {/* Filters and Search */}
+      <div className="space-y-4">
+        {/* Search Bar */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search size={20} className="absolute left-3 top-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Kërko klientin (emër, telefon, email)..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
           
-          <select
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="endDate">Data e Përfundimit</option>
-            <option value="startDate">Data e Fillimit</option>
-            <option value="amount">Shuma</option>
-            <option value="client">Klient</option>
-          </select>
+          <div className="text-sm text-gray-600">
+            Total: {filteredBookings.length} rezervime
+          </div>
         </div>
 
-        <div className="text-sm text-gray-600">
-          Total: {filteredBookings.length} rezervime
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">Të Gjitha Rezervimet</option>
+              <option value="active">AKTIVE</option>
+              <option value="completed">TË PËRFUNDUARA</option>
+              <option value="cancelled">TË ANULUARA</option>
+            </select>
+            
+            <select
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={carFilter}
+              onChange={(e) => setCarFilter(e.target.value)}
+            >
+              <option value="all">Të Gjitha Makinat</option>
+              {cars.map(car => (
+                <option key={car.id} value={car.id}>
+                  {car.make} {car.model} ({car.licensePlate})
+                </option>
+              ))}
+            </select>
+            
+            <select
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="endDate">Data e Përfundimit</option>
+              <option value="startDate">Data e Fillimit</option>
+              <option value="amount">Shuma</option>
+              <option value="client">Klient</option>
+            </select>
+          </div>
+          
+          <button
+            onClick={handleAddBooking}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Plus size={20} />
+            Rezervim i Ri
+          </button>
         </div>
-        
-        <button
-          onClick={handleAddBooking}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-        >
-          <Plus size={20} />
-          Rezervim i Ri
-        </button>
       </div>
 
       {/* Bookings List */}
