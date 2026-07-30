@@ -16,6 +16,7 @@ const mapBookingFromDB = (booking: any): Booking => ({
   totalAmount: Number(booking.total_amount),
   discount: booking.discount !== null && booking.discount !== undefined ? Number(booking.discount) : undefined,
   isPaid: booking.is_paid !== null && booking.is_paid !== undefined ? Boolean(booking.is_paid) : false,
+  childSeat: booking.child_seat !== null && booking.child_seat !== undefined ? Boolean(booking.child_seat) : false,
   paymentMethod: booking.payment_method || undefined,
   dailyRateAtBooking: booking.daily_rate_at_booking !== null && booking.daily_rate_at_booking !== undefined ? Number(booking.daily_rate_at_booking) : undefined,
   status: booking.status,
@@ -36,6 +37,7 @@ const mapBookingToDB = (booking: Omit<Booking, 'id'>): any => ({
   total_amount: booking.totalAmount,
   discount: booking.discount !== undefined ? booking.discount : 0,
   is_paid: booking.isPaid !== undefined ? booking.isPaid : false,
+  child_seat: booking.childSeat !== undefined ? booking.childSeat : false,
   payment_method: booking.paymentMethod || null,
   status: booking.status,
   created_by: booking.createdBy || undefined,
@@ -204,6 +206,7 @@ export const bookingsService = {
     if (booking.totalAmount !== undefined) updateData.total_amount = booking.totalAmount;
     if (booking.discount !== undefined) updateData.discount = booking.discount || 0;
     if (booking.isPaid !== undefined) updateData.is_paid = booking.isPaid;
+    if (booking.childSeat !== undefined) updateData.child_seat = booking.childSeat;
     if (booking.paymentMethod !== undefined) updateData.payment_method = booking.paymentMethod || null;
     if (booking.status !== undefined) updateData.status = booking.status;
 

@@ -24,6 +24,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
     totalAmount: number | string; // Allow string for empty input
     discount: number | string; // Allow string for empty input
     isPaid: boolean;
+    childSeat: boolean;
     paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | '';
     status: Booking['status'];
   }>({
@@ -38,6 +39,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
     totalAmount: '',
     discount: '',
     isPaid: false,
+    childSeat: false,
     paymentMethod: '',
     status: 'active'
   });
@@ -130,6 +132,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
         totalAmount: booking.totalAmount || '',
         discount: booking.discount !== undefined && booking.discount !== null ? booking.discount : '',
         isPaid: booking.isPaid !== undefined ? booking.isPaid : false,
+        childSeat: booking.childSeat !== undefined ? booking.childSeat : false,
         paymentMethod: booking.paymentMethod || '',
         status: booking.status
       });
@@ -203,8 +206,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
         ...prev,
         [name]: numValue === '' ? '' : (isNaN(numValue) ? 0 : numValue)
       }));
-    } else if (name === 'isPaid') {
-      // Handle checkbox for isPaid
+    } else if (name === 'isPaid' || name === 'childSeat') {
+      // Handle checkbox fields
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({
         ...prev,
@@ -437,6 +440,20 @@ const BookingModal: React.FC<BookingModalProps> = ({ booking, cars, bookings, on
                 <span className="absolute right-3 top-2 text-gray-500">€</span>
               </div>
               <p className="text-xs text-gray-500 mt-1">Opsionale - Shumë fikse në EUR që zbritet nga çmimi ditor</p>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="childSeat"
+                id="childSeat"
+                checked={formData.childSeat}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="childSeat" className="ml-2 text-sm font-medium text-gray-700">
+                Ulëse për fëmijë
+              </label>
             </div>
 
             <div className="flex items-center">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2, UserCircle, Mail, Search } from 'lucide-react';
+import { Calendar, User, Phone, Car, Clock, Euro, Plus, Edit, Trash2, UserCircle, Mail, Search, Baby } from 'lucide-react';
 import { Booking, Car as CarType } from '../types';
 import BookingModal from './BookingModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
@@ -265,6 +265,12 @@ const BookingsManagement: React.FC<BookingsManagementProps> = ({
                     {booking.discount !== undefined && booking.discount !== null && Number(booking.discount) > 0 && (
                       <div className="flex items-center gap-2">
                         <span className="text-orange-600 font-medium">Zbritje: €{booking.discount}</span>
+                      </div>
+                    )}
+                    {booking.childSeat && (
+                      <div className="flex items-center gap-2">
+                        <Baby size={16} className="text-blue-600" />
+                        <span className="text-blue-600 font-medium">Ulëse për fëmijë</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2">

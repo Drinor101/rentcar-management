@@ -62,15 +62,8 @@ function AppContent() {
       const allBookingsData = await bookingsService.getAll();
       setAllBookings(allBookingsData);
       
-      // Filter bookings for list view based on role
-      let bookingsData: Booking[];
-      if (isAdmin) {
-        bookingsData = allBookingsData;
-      } else {
-        // Puntor sees only their own bookings in list view
-        bookingsData = allBookingsData.filter(b => b.createdBy === user.id);
-      }
-      setBookings(bookingsData);
+      // All users can view bookings so workers can assist every client.
+      setBookings(allBookingsData);
       
       // Filter reports based on role
       let reportsData: Report[];
@@ -122,14 +115,8 @@ function AppContent() {
           const allBookingsData = await bookingsService.getAll();
           setAllBookings(allBookingsData);
           
-          // Filter bookings for list view based on role
-          let bookingsData: Booking[];
-          if (isAdmin) {
-            bookingsData = allBookingsData;
-          } else {
-            bookingsData = allBookingsData.filter(b => b.createdBy === user.id);
-          }
-          setBookings(bookingsData);
+          // All users can view bookings so workers can assist every client.
+          setBookings(allBookingsData);
           
           // Update cars if any bookings were completed
           if (carIds.length > 0) {

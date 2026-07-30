@@ -23,6 +23,7 @@ export interface Booking {
   totalAmount: number;
   discount?: number; // Discount amount in EUR (fixed amount deducted from daily rate)
   isPaid?: boolean; // Whether the booking is paid
+  childSeat?: boolean; // Whether a child seat is requested
   paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other'; // Payment method
   dailyRateAtBooking?: number; // Daily rate of the car at the time of booking creation
   status: 'active' | 'completed' | 'cancelled';
@@ -47,6 +48,7 @@ export interface Report {
   totalAmount: number;
   discount?: number; // Discount amount in EUR (fixed amount deducted from daily rate)
   isPaid?: boolean; // Whether the booking is paid
+  childSeat?: boolean; // Whether a child seat is requested
   paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other'; // Payment method
   status: 'active' | 'completed' | 'cancelled';
   createdAt: string;
